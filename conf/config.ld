@@ -1,7 +1,0 @@
-/*
- * Automatically generated file. Don't edit
- */
-CONFIG_LOADER_TEXT = 0xfff80000 ;
-CONFIG_KERNEL_TEXT = 0x00080000 ;
-CONFIG_BOOTIMG_BASE = 0x00102000 ;
-CONFIG_SYSPAGE_BASE = 0x00000000 ;

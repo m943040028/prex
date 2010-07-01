@@ -1,3 +1,3 @@
 #!/bin/sh
 
-qemu-system-ppcemb -nographic -M taihu -L . -pflash bsp/boot/bootldr -s -S
+qemu-system-ppcemb -nographic -M bamboo -L . -bios bsp/boot/bootldr -s -S

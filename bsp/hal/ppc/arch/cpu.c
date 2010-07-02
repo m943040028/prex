@@ -74,7 +74,7 @@ int
 copyin(const void *uaddr, void *kaddr, size_t len)
 {
 
-	if (user_area(uaddr) && user_area(uaddr + len)) {
+	if (user_area(uaddr) && user_area((u_char *)uaddr + len)) {
 		memcpy(kaddr, uaddr, len);
 		return 0;
 	}
@@ -85,7 +85,7 @@ int
 copyout(const void *kaddr, void *uaddr, size_t len)
 {
 
-	if (user_area(uaddr) && user_area(uaddr + len)) {
+	if (user_area(uaddr) && user_area((u_char *)uaddr + len)) {
 		memcpy(uaddr, kaddr, len);
 		return 0;
 	}
@@ -96,7 +96,7 @@ int
 copyinstr(const void *uaddr, void *kaddr, size_t len)
 {
 
-	if (user_area(uaddr) && user_area(uaddr + len)) {
+	if (user_area(uaddr) && user_area((u_char *)uaddr + len)) {
 		strlcpy(kaddr, uaddr, len);
 		return 0;
 	}

@@ -11,20 +11,20 @@ SECTIONS {
 
 	.text . : {
 		*(.text)
-	}
+	} : text
 
 	. = ALIGN(4);
 	.rodata . : {
 		*(.rodata)
 		*(.rodata.*)
-	}
+	} : text
 
 	. = ALIGN(0x1000);
 	.data . : {
 		*(.data)
 		*(.sdata)
 		*(.sdata2)
-	}
+	} : data
 
 	. = ALIGN(4);
 	.bss . : {

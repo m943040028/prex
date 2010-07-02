@@ -29,12 +29,12 @@ options 	FS_THREADS=4	# Number of file system threads
 #
 # Platform settings
 #
-options		MPC750		# Processor type
-#options 	MMU		# Memory management unit
+options		PPC440		# Processor type
+options 	MMU		# Memory management unit
 options 	CACHE		# Cache memory
 #options 	FPU		# Floating point unit
-#options 	ROMBOOT		# Boot from ROM
-options 	BOOTDISK	# Disk for /boot directory
+options 	ROMBOOT		# Boot from ROM
+#options 	BOOTDISK	# Disk for /boot directory
 options		PPC_OEA		# PowerPC OEA
 
 #

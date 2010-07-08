@@ -15,7 +15,7 @@ makeoptions	ASFLAGS+= -mregnames
 memory		LOADER_TEXT	0xfff80000	# Start of boot loader
 memory		KERNEL_TEXT	0x00080000	# Start of kernel
 memory		BOOTIMG_BASE	0x00102000	# Location of boot image
-memory		SYSPAGE_BASE	0x00000000	# Location of system page
+memory		SYSPAGE_BASE	0x80000000	# Location of system page
 
 #
 # Tunable paramters

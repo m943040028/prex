@@ -35,7 +35,6 @@
 #include <machine/memory.h>
 #include <machine/syspage.h>
 
-
 #define BOOTSP		(BOOTSTKTOP - KERNBASE)
 
 #define MSR_EE		0x8000

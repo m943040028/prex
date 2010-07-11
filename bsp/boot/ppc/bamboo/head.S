@@ -62,4 +62,8 @@ ENTRY(boot_entry)
 	subi	r1, r1, 8
 
 	b	main
+
+	.section .tail,"ax"
+dummy:
+	.byte   0xff
 .end

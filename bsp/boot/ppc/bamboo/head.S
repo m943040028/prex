@@ -42,14 +42,7 @@
 #define ENTRY(x) .global x; .align; x##:
 
 	.section ".text","ax"
-
-/*
- * PReP data
- */
-		.long	0x00040000	/* boot offset:	0x400 */
-		.long	0x00000800	/* boot size: 0x80000 */
-
-.org	0x200
+.org	0x0
 /*
  * Loader entry point
  */

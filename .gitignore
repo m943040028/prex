@@ -11,6 +11,8 @@ conf/drvtab.h
 cscope.in.out
 cscope.out
 cscope.po.out
+.project
+.cproject
 log
 prexos
 sys/prex

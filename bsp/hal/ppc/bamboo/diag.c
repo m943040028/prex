@@ -77,11 +77,6 @@ diag_init(void)
 void
 diag_puts(char *str)
 {
-
-	while (*str) {
-		/* Write to the qemu debug port. */
-		outb(0xf00, (u_char)*str++);
-	}
 }
 
 void

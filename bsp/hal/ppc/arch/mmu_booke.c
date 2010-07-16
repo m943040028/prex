@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2009, Kohsuke Ohtani
+ * Copyright (c) 2010, Sheng-Yu Chiu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,12 +28,12 @@
  */
 
 /*
- * mmu.c - memory management unit support routines
+ * mmu_booke.c - memory management unit support for PowerPC Book-E
  */
 
 /*
  * This module provides virtual/physical address translation for
- * ppc OEA MMU.
+ * PowerPC Book-E Architecture.
  */
 
 #include <machine/syspage.h>

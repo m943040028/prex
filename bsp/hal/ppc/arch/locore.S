@@ -227,7 +227,6 @@ TRAP_ENTRY(0xe00, fp_assist      ,TRAP_FP_ASSIST)
 .globl	exception_vector_end
 exception_vector_end:
 
-
 /*
  * Kernel start point
  */
@@ -268,11 +267,51 @@ ENTRY(kernel_start)
 	cmplw	cr0, r3, r4
 	blt	1b
 
+#if defined(CONFIG_MMU) && defined(CONFIG_PPC_BOOKE)
+	tlbia			/* Invalidate all TLB entries */
+	isync
+
+	li	r1, 0
+	mtspr	SPR_ZPR, r1	/* disable zone protection */
+	mtspr	SPR_PID, r1	/* PID=0 to disable protection */
+	isync
+
+	/* Lock first 16MB of memory into UTLB to enable flat mapping */
+	lis	r3, KERNBASE@ha
+	addi	r3, r3, KERNBASE@l
+	clrrwi  r3, r3, 10	/* Mask off the effective page number */
+	ori     r3, r3, (TLB_VALID|TLB_PAGESZ(PAGESZ_16M))
+	/*ori     r1, r1, (TLB_WR|TLB_EX)*/	/* Set the write and execute bits */
+
+	li	r2, 63 		/* r2 = utlb entry */
+	tlbwe	r3, r2, 0	/* write tlbhi(Tag entry) */
+	tlbwe	r1, r2, 1	/* write tlblo(Data entry) */
+	isync
+
+	tlbre	r4, r2, 0
+	tlbre	r5, r2, 1
+	ori     r5, r5, TLB_VALID
+	tlbwe	r5, r2, 0
+	isync
+	tlbre	r6, r2, 0
+
+	/* enable intrustion and data translation */
+	mfmsr	r0
+	ori	r0, r0, (MSR_IR|MSR_DR)
+	mtspr	SPR_SRR1, r0		/* return msr */
+	lis	r0, main@ha
+	addi	r0, r0, main@l		/* return addr */
+	mtspr	SPR_SRR0, r0
+	sync
+	rfi
+	/* never reached */
+#else
 	/*
 	 * Call kernel main routine
 	 */
 	b	main
 	/* NOTREACHED */
+#endif
 
 
 /*
@@ -460,4 +499,3 @@ ENTRY(splon)
 	ori	r4, r3, MSR_EE@l
 	mtmsr	r4
 	blr
-

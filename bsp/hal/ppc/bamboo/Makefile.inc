@@ -10,7 +10,7 @@ SRCS:=		ppc/arch/locore.S \
 		ppc/bamboo/interrupt.c
 
 ifeq ($(CONFIG_MMU),y)
-SRCS+=		ppc/arch/mmu_oea.c
+SRCS+=		ppc/arch/mmu_booke.c
 endif
 ifeq ($(DEBUG),1)
 SRCS+=		ppc/bamboo/diag.c

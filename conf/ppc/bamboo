@@ -7,14 +7,14 @@
 #
 makeoptions	GCCFLAGS+= -mcpu=powerpc -m32 -mno-eabi -msoft-float
 #makeoptions	GCCFLAGS+= -fno-dwarf2-cfi-asm
-makeoptions	ASFLAGS+= -mregnames
+makeoptions	ASFLAGS+= -mregnames -m440
 
 #
 # Memory address
 #
 memory		LOADER_TEXT	0x00000000	# Start of boot loader
 memory		KERNEL_TEXT	0x80080000	# Start of kernel
-memory		BOOTIMG_BASE	0x80002000	# Location of boot image
+memory		BOOTIMG_BASE	0x80008000	# Location of boot image
 memory		SYSPAGE_BASE	0x80000000	# Location of system page
 
 #
@@ -35,7 +35,7 @@ options 	CACHE		# Cache memory
 #options 	FPU		# Floating point unit
 options 	ROMBOOT		# Boot from ROM
 #options 	BOOTDISK	# Disk for /boot directory
-options		PPC_OEA		# PowerPC OEA
+options		PPC_BOOKE	# PowerPC Book-E
 
 #
 # General setup

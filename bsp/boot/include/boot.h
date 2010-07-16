@@ -36,7 +36,7 @@
 #include <sys/bootinfo.h>
 
 /* #define DEBUG_ELF      1 */
-/* #define DEBUG_BOOTINFO 1 */
+#define DEBUG_BOOTINFO 1
 
 #ifdef DEBUG
 #define DPRINTF(a) printf a

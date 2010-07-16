@@ -148,8 +148,9 @@ load_executable(char *img, struct module *m)
 		if (phdr->p_filesz > 0) {
 			memcpy((char *)load_base, img + phdr->p_offset,
 			       (size_t)phdr->p_filesz);
-			ELFDBG(("load: offset=%lx size=%x\n",
-				 load_base, (int)phdr->p_filesz));
+			ELFDBG(("load: to=%lx size=%x offset=%x\n",
+				 load_base, (int)phdr->p_filesz,
+				 (int)phdr->p_offset));
 		}
 		if (!(phdr->p_flags & PF_X)) {
 			if (m->bsssz > 0) {
@@ -160,6 +161,7 @@ load_executable(char *img, struct module *m)
 			load_base += phdr->p_memsz;
 		}
 	}
+
 	/* workaround for data/bss size is 0 */
 	if (m->data == 0)
 		load_base = phys_base + m->textsz;

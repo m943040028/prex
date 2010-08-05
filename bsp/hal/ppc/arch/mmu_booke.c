@@ -50,6 +50,14 @@
 static pgd_t boot_pgd = (pgd_t)BOOT_PGD;
 
 
+static void write_tlb_entry_hi(uint8_t entry, uint32_t data)
+{
+}
+
+static void write_tlb_entry_lo(uint32_t entry, uint32_t data)
+{
+}
+
 /*
  * Map physical memory range into virtual address
  *
@@ -287,4 +295,12 @@ mmu_init(struct mmumap *mmumap_table)
 			panic("mmu_init");
 	}
 #endif
+}
+
+/*
+ * Map I/O memory for diagnostic device at very early stage.
+ */
+void
+mmu_premap(paddr_t phys, vaddr_t virt)
+{
 }

@@ -69,7 +69,10 @@ diag_puts(char *str)
 void
 diag_init(void)
 {
-	/* DO NOTHING */
+
+#ifdef CONFIG_MMU
+	mmu_premap(COM_BASE, COM_BASE);
+#endif
 }
 #endif	/* !CONFIG_DIAG_SERIAL */
 

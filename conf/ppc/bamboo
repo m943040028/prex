@@ -5,9 +5,9 @@
 #
 # Make options
 #
-makeoptions	GCCFLAGS+= -mcpu=powerpc -m32 -mno-eabi -msoft-float
+makeoptions	GCCFLAGS+= -mcpu=440 -mtune=440 -m32 -mno-eabi -msoft-float
 #makeoptions	GCCFLAGS+= -fno-dwarf2-cfi-asm
-makeoptions	ASFLAGS+= -mregnames -m440
+makeoptions	ASFLAGS+= -mregnames -m405
 
 #
 # Memory address

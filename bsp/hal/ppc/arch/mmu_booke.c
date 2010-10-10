@@ -50,12 +50,16 @@
 static pgd_t boot_pgd = (pgd_t)BOOT_PGD;
 
 
-static void write_tlb_entry_hi(uint8_t entry, uint32_t data)
+static void write_tlb_entry(uint8_t entry, uint32_t data, uint32_t tag)
 {
-}
-
-static void write_tlb_entry_lo(uint32_t entry, uint32_t data)
-{
+	__asm__ __volatile__(
+		"tlbwe	%1, %0, 1\n" /* data */
+		"tlbwe	%2, %0, 0\n" /* tag  */
+		"isync\n"
+	: /* no output */
+	: "r" (entry), "r" (data), "r" (tag)
+	: "memory"
+	);
 }
 
 /*
@@ -303,4 +307,10 @@ mmu_init(struct mmumap *mmumap_table)
 void
 mmu_premap(paddr_t phys, vaddr_t virt)
 {
+	virt &= TLB_EPN_MASK;
+	phys &= TLB_RPN_MASK;
+
+	/* use tlb entry 62, while tlb entry 63 is used for
+	   temperary flat kernel memory mapping */
+	write_tlb_entry(62, phys | TLB_WR, virt | TLB_VALID | TLB_PAGESZ(PAGESZ_4K));
 }

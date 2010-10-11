@@ -56,12 +56,12 @@ struct mmumap mmumap_table[] =
 	/*
 	 * Physical memory
 	 */
-	{ 0x80000000, 0x00000000, 0x9000000, VMT_RAM },
+	{ 0x80000000, 0x00000000, 0x8000000, VMT_RAM },
 
 	/*
-	 * ISA I/O space
+	 * I/O space
 	 */
-	{ 0xf0000000, 0x80000000, 0xf000, VMT_IO },
+	{ 0xef000000, 0xef000000, 0x1000000, VMT_IO },
 
 	{ 0,0,0,0 }
 };
@@ -144,7 +144,9 @@ machine_abort(void)
 void
 machine_startup(void)
 {
-	void *vector_offset = 0;
+	void *vector_offset = (void *)SYSPAGE;
+
+	set_evpf((vaddr_t)vector_offset);
 
 	/*
 	 * Reserve system pages.

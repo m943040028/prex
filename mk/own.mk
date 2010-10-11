@@ -4,8 +4,8 @@ _OWN_MK_:=	1
 # Build flavor
 _DEBUG_:=	1
 #_QUICK_:=	1
-#_STRICT_:=	1
-#_SILENT_:=	1
+_STRICT_:=	1
+_SILENT_:=	1
 
 # Clean the slate
 CFLAGS=

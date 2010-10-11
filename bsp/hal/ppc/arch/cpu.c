@@ -102,3 +102,29 @@ copyinstr(const void *uaddr, void *kaddr, size_t len)
 	}
 	return EFAULT;
 }
+
+#if defined(CONFIG_MMU)
+void write_tlb_entry(uint8_t entry, uint32_t data, uint32_t tag)
+{
+	__asm__ __volatile__(
+		"tlbwe  %1, %0, 1\n" /* data */
+		"tlbwe  %2, %0, 0\n" /* tag  */
+		"isync\n"
+		: /* no output */
+		: "r" (entry), "r" (data), "r" (tag)
+		: "memory"
+	);
+}
+
+void set_evpf(vaddr_t addr)
+{
+	addr &= 0xffff0000;
+
+	__asm__ __volatile__(
+		"mtspr	0x3d6, %0\n"
+		: /* no output */
+		: "r" (addr)
+		: "memory"
+	);
+}
+#endif

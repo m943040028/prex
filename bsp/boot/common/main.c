@@ -61,7 +61,6 @@ main(void)
 	 */
 	debug_init();
 
-	*(uint32_t *)0 = 0xdeadbeaf;
 	DPRINTF(("Prex Boot Loader\n"));
 
 	/*

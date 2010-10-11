@@ -1,3 +1,3 @@
 #!/bin/sh
 
-qemu-system-ppcemb -d cpu -nographic -M bamboo  -kernel prexos
+qemu-system-ppcemb -nographic -M bamboo  -kernel prexos

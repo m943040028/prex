@@ -33,18 +33,16 @@
 
 #include <kernel.h>
 
-volatile u_char *ISA_io  = (u_char *)0x80000000;
-
 void
 outb(int port, u_char val)
 {
 
-	ISA_io[port] = val;
+	*(volatile u_char *)port = val;
 }
 
 u_char
 inb(int port)
 {
 
-	return (ISA_io[port]);
+	return *(volatile u_char *)(port);
 }

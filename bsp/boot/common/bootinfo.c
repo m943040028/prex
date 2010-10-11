@@ -64,7 +64,6 @@ dump_bootinfo(void)
 
 	printf("[Boot information]\n");
 
-	printf("nr_rams=%d\n", bi->nr_rams);
 	for (i = 0; i < bi->nr_rams; i++) {
 		if (bi->ram[i].type != 0) {
 			printf("ram[%d]:  base=%lx size=%x type=%s\n", i,

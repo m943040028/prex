@@ -46,10 +46,10 @@ bootinfo_init(void)
 	bi->video.text_y = 25;
 
 	/*
-	 * Main RAM - 144M
+	 * Main RAM - 128M
 	 */
 	bi->ram[0].base = 0;
-	bi->ram[0].size = 0x9000000;
+	bi->ram[0].size = 0x8000000;
 	bi->ram[0].type = MT_USABLE;
 
 	bi->nr_rams = 1;

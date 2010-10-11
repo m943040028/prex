@@ -298,5 +298,5 @@ page_init(void)
 		}
 	}
 	used_size = 0;
-	DPRINTF(("Memory size=%ld\n", total_size));
+	DPRINTF(("Memory size=%ld MB\n", total_size / 1024 / 1024));
 }

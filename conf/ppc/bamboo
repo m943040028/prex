@@ -29,13 +29,13 @@ options 	FS_THREADS=4	# Number of file system threads
 #
 # Platform settings
 #
-options		PPC440		# Processor type
+options		PPC44x		# Processor type
+options		PPC_BOOKE	# PowerPC Book E compatible
 options 	MMU		# Memory management unit
 options 	CACHE		# Cache memory
 #options 	FPU		# Floating point unit
 options 	ROMBOOT		# Boot from ROM
 #options 	BOOTDISK	# Disk for /boot directory
-options		PPC_BOOKE	# PowerPC Book-E
 
 #
 # General setup

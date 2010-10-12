@@ -49,6 +49,7 @@
 #define TRAP_SYSTEM_CALL	12
 #define TRAP_TRACE		13
 #define TRAP_FP_ASSIST		14
+#define TRAP_DATA_TLB_MISS	20
 
 
 #ifndef __ASSEMBLY__

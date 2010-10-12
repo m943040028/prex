@@ -50,11 +50,23 @@
 
 	.section ".text","ax"
 
+#if defined(CONFIG_MMU)
+#define ABS_JUMP(target) \
+	mfmsr	r12; \
+	ori	r12, r12, (MSR_IR|MSR_DR); \
+	mtspr	SPR_SRR1, r12; /* return msr */	\
+	lis	r12, (target)@ha; \
+	ori	r12, r12, (target)@l; /* return addr */ \
+	mtspr	SPR_SRR0, r12; \
+	sync; \
+	rfi
+#else
 #define ABS_JUMP(target) \
 	lis	r12, (target)@ha ; \
 	ori	r12, r12, (target)@l ; \
 	mtctr	r12 ;\
 	bctr
+#endif
 
 /*
  * Macro to save all registers.
@@ -223,6 +235,7 @@ INTR_ENTRY(0x900, decrementer    ,TRAP_DECREMENTER)
 SYSC_ENTRY(0xc00, syscall        ,TRAP_SYSTEM_CALL)
 TRAP_ENTRY(0xd00, trace          ,TRAP_TRACE)
 TRAP_ENTRY(0xe00, fp_assist      ,TRAP_FP_ASSIST)
+TRAP_ENTRY(0x1100, data_tlb_miss ,TRAP_DATA_TLB_MISS)
 
 .globl	exception_vector_end
 exception_vector_end:
@@ -267,7 +280,7 @@ ENTRY(kernel_start)
 	cmplw	cr0, r3, r4
 	blt	1b
 
-#if defined(CONFIG_MMU) && defined(CONFIG_PPC_BOOKE)
+#if defined(CONFIG_MMU)
 	tlbia			/* Invalidate all TLB entries */
 	isync
 

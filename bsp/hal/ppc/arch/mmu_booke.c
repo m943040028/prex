@@ -146,7 +146,6 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 pgd_t
 mmu_newmap(void)
 {
-#if 0
 	paddr_t pg;
 	pgd_t pgd;
 	int i;
@@ -161,8 +160,6 @@ mmu_newmap(void)
 	i = PAGE_DIR(KERNBASE);
 	memcpy(&pgd[i], &boot_pgd[i], (size_t)(1024 - i));
 	return pgd;
-#endif
-	return 0;
 }
 
 /*
@@ -171,11 +168,10 @@ mmu_newmap(void)
 void
 mmu_terminate(pgd_t pgd)
 {
-#if 0
 	int i;
 	pte_t pte;
 
-	flush_tlb();
+	/*flush_tlb();*/
 
 	/* Release all user page table */
 	for (i = 0; i < PAGE_DIR(KERNBASE); i++) {
@@ -186,7 +182,6 @@ mmu_terminate(pgd_t pgd)
 	}
 	/* Release page directory */
 	page_free(kvtop(pgd), PAGE_SIZE);
-#endif
 }
 
 /*
@@ -215,7 +210,6 @@ mmu_switch(pgd_t pgd)
 paddr_t
 mmu_extract(pgd_t pgd, vaddr_t va, size_t size)
 {
-#if 0
 	pte_t pte;
 	vaddr_t start, end, pg;
 	paddr_t pa;
@@ -236,8 +230,6 @@ mmu_extract(pgd_t pgd, vaddr_t va, size_t size)
 	pte = vtopte(pgd, start);
 	pa = (paddr_t)ptetopg(pte, start);
 	return pa + (paddr_t)(va - start);
-#endif
-	return 0;
 }
 
 /*
@@ -288,8 +280,8 @@ mmu_premap(paddr_t phys, vaddr_t virt)
 	virt &= TLB_EPN_MASK;
 	phys &= TLB_RPN_MASK;
 
-	/* use tlb entry 62, while tlb entry 63 is used for
-	   temperary flat kernel memory mapping */
-	write_tlb_entry(62, phys | TLB_WR,
+	/* this tlb entry is safe to be replaced after boot_pgd is
+	   setup for mmaped I/O space */
+	write_tlb_entry(0, phys | TLB_WR,
 			virt | TLB_VALID | TLB_PAGESZ(PAGESZ_4K));
 }

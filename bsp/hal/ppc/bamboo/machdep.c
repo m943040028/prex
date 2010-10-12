@@ -146,8 +146,6 @@ machine_startup(void)
 {
 	void *vector_offset = (void *)SYSPAGE;
 
-	set_evpf((vaddr_t)vector_offset);
-
 	/*
 	 * Reserve system pages.
 	 */

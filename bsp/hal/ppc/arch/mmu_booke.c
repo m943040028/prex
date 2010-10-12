@@ -28,11 +28,7 @@
  */
 
 /*
- * mmu_booke.c - memory management unit support for PowerPC Book-E
- */
-
-/*
- * This module provides virtual/physical address translation for
+ * mmu_booke.c - memory management unit support for
  * PowerPC Book-E Architecture.
  */
 
@@ -50,6 +46,7 @@
 static pgd_t boot_pgd = (pgd_t)BOOT_PGD;
 
 
+<<<<<<< HEAD
 static void write_tlb_entry(uint8_t entry, uint32_t data, uint32_t tag)
 {
 	__asm__ __volatile__(
@@ -62,6 +59,8 @@ static void write_tlb_entry(uint8_t entry, uint32_t data, uint32_t tag)
 	);
 }
 
+=======
+>>>>>>> 6bbc0f265d9db2270e7cc3f32a640a430690ac5e
 /*
  * Map physical memory range into virtual address
  *
@@ -90,7 +89,6 @@ static void write_tlb_entry(uint8_t entry, uint32_t data, uint32_t tag)
 int
 mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 {
-#if 0
 	uint32_t pte_flag = 0;
 	uint32_t pde_flag = 0;
 	pte_t pte;
@@ -100,28 +98,24 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 	va = round_page(va);
 	size = trunc_page(size);
 
+	pde_flag = (uint32_t)PDE_PRESENT;
 	/*
 	 * Set page flag
 	 */
 	switch (type) {
 	case PG_UNMAP:
 		pte_flag = 0;
-		pde_flag = (uint32_t)(PDE_PRESENT | PDE_WRITE | PDE_USER);
 		break;
 	case PG_READ:
 		pte_flag = (uint32_t)(PTE_PRESENT | PTE_USER);
-		pde_flag = (uint32_t)(PDE_PRESENT | PDE_WRITE | PDE_USER);
 		break;
 	case PG_WRITE:
 		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE | PTE_USER);
-		pde_flag = (uint32_t)(PDE_PRESENT | PDE_WRITE | PDE_USER);
 		break;
 	case PG_SYSTEM:
-		pde_flag = (uint32_t)(PDE_PRESENT | PDE_WRITE);
 		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE);
 		break;
 	case PG_IOMEM:
-		pde_flag = (uint32_t)(PDE_PRESENT | PDE_WRITE);
 		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE | PTE_NCACHE);
 		break;
 	default:
@@ -152,9 +146,8 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 		va += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
-	flush_tlb();
+	/*flush_tlb();*/
 	return 0;
-#endif
 }
 
 /*
@@ -168,7 +161,6 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 pgd_t
 mmu_newmap(void)
 {
-#if 0
 	paddr_t pg;
 	pgd_t pgd;
 	int i;
@@ -183,7 +175,6 @@ mmu_newmap(void)
 	i = PAGE_DIR(KERNBASE);
 	memcpy(&pgd[i], &boot_pgd[i], (size_t)(1024 - i));
 	return pgd;
-#endif
 }
 
 /*
@@ -192,11 +183,10 @@ mmu_newmap(void)
 void
 mmu_terminate(pgd_t pgd)
 {
-#if 0
 	int i;
 	pte_t pte;
 
-	flush_tlb();
+	/*flush_tlb();*/
 
 	/* Release all user page table */
 	for (i = 0; i < PAGE_DIR(KERNBASE); i++) {
@@ -207,7 +197,6 @@ mmu_terminate(pgd_t pgd)
 	}
 	/* Release page directory */
 	page_free(kvtop(pgd), PAGE_SIZE);
-#endif
 }
 
 /*
@@ -236,7 +225,6 @@ mmu_switch(pgd_t pgd)
 paddr_t
 mmu_extract(pgd_t pgd, vaddr_t va, size_t size)
 {
-#if 0
 	pte_t pte;
 	vaddr_t start, end, pg;
 	paddr_t pa;
@@ -257,7 +245,6 @@ mmu_extract(pgd_t pgd, vaddr_t va, size_t size)
 	pte = vtopte(pgd, start);
 	pa = (paddr_t)ptetopg(pte, start);
 	return pa + (paddr_t)(va - start);
-#endif
 }
 
 /*
@@ -278,7 +265,6 @@ mmu_extract(pgd_t pgd, vaddr_t va, size_t size)
 void
 mmu_init(struct mmumap *mmumap_table)
 {
-#if 0
 	struct mmumap *map;
 	int map_type = 0;
 
@@ -298,7 +284,6 @@ mmu_init(struct mmumap *mmumap_table)
 			    (size_t)map->size, map_type))
 			panic("mmu_init");
 	}
-#endif
 }
 
 /*
@@ -310,7 +295,8 @@ mmu_premap(paddr_t phys, vaddr_t virt)
 	virt &= TLB_EPN_MASK;
 	phys &= TLB_RPN_MASK;
 
-	/* use tlb entry 62, while tlb entry 63 is used for
-	   temperary flat kernel memory mapping */
-	write_tlb_entry(62, phys | TLB_WR, virt | TLB_VALID | TLB_PAGESZ(PAGESZ_4K));
+	/* this tlb entry is safe to be replaced after boot_pgd is
+	   setup for mmaped I/O space */
+	write_tlb_entry(0, phys | TLB_WR,
+			virt | TLB_VALID | TLB_PAGESZ(PAGESZ_4K));
 }

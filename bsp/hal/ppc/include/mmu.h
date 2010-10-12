@@ -32,13 +32,46 @@
 
 #include <sys/types.h>
 
+#if defined(CONFIG_PPC_BOOKE)
+
+typedef uint32_t	*pgd_t;		/* page directory */
+typedef uint32_t	*pte_t;		/* page table entry */
+
+/* page directory entry */
+#define PDE_PRESENT	0x00000001
+#define PDE_ADDRESS	0xffc00000
+
+/* page table entry */
+#define PTE_PRESENT	0x00000001
+#define PTE_WRITE       0x00000002
+#define PTE_USER        0x00000004
+#define PTE_NCACHE      0x00000004
+#define PTE_ADDRESS	0xfffff000
+
+/*
+ *  Virtual and physical address translation
+ */
+#define PAGE_DIR(virt)      (int)((((vaddr_t)(virt)) >> 22) & 0x3ff)
+#define PAGE_TABLE(virt)    (int)((((vaddr_t)(virt)) >> 12) & 0xff)
+
+#define pte_present(pgd, virt)  (pgd[PAGE_DIR(virt)] & PDE_PRESENT)
+
+#define page_present(pte, virt) (pte[PAGE_TABLE(virt)] & PTE_PRESENT)
+
+#define vtopte(pgd, virt) \
+            (pte_t)ptokv((pgd)[PAGE_DIR(virt)] & PDE_ADDRESS)
+
+#define ptetopg(pte, virt) \
+            ((pte)[PAGE_TABLE(virt)] & PTE_ADDRESS)
+
+#elif
+
 typedef uint32_t	*pgd_t;		/* page directory */
 
 struct pte {
 	uint32_t	pte_hi;
 	uint32_t	pte_lo;
 };
-
 typedef struct pte	*pte_t;		/* page table entry */
 
 /*
@@ -70,5 +103,6 @@ typedef struct pte	*pte_t;		/* page table entry */
 #define vtopte(pgd, virt)
 
 #define ptetopg(pte, virt)
+#endif /* !CONFIG_PPC_BOOKE */
 
 #endif /* !_PPC_MMU_H */

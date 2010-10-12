@@ -54,14 +54,15 @@
 static void
 outb(int port, u_char val)
 {
-	*(volatile unsigned char *)port = val;
+
+	*(volatile u_char *)port = val;
 }
 
 static u_char
 inb(int port)
 {
 
-	return (u_char)*(volatile unsigned char *)port;
+	return *(volatile u_char *)port;
 }
 #endif
 

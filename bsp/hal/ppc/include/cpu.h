@@ -82,8 +82,15 @@
 #define	SPR_PVR			287	/* processor version register */
 
 #if defined(CONFIG_PPC_BOOKE)
-#define SPR_ZPR			944
-#define SPR_PID			945
+#define	SPR_IVPR		0x3f	/* interrupt vector prefix register */
+#define	SPR_EVPR		0x3d6	/* exception vector prefix register */
+
+/* 
+ * Below is not in Book-E Architecture, but it's needed by Qemu 
+ * (since Qemu is not yet properly implement Book-E Architecture)
+ */
+#define SPR_ZPR			0x3b0	/* zone protection register */
+#define SPR_PID			0x3b1
 #endif
 
 #if defined(CONFIG_PPC_BOOKE)
@@ -113,13 +120,14 @@
 #define TLB_I		0x00000004	/* Caching is inhibited */
 #define TLB_M		0x00000002	/* Memory is coherent */
 #define TLB_G		0x00000001	/* Memory is guarded from prefetch */
-#endif
+#endif /* CONFIG_PPC_BOOKE */
 
 #ifndef __ASSEMBLY__
 
 __BEGIN_DECLS
 void	 outb(int, u_char);
 u_char	 inb(int);
+void	 write_tlb_entry(uint8_t, uint32_t, uint32_t);
 __END_DECLS
 
 #endif /* !__ASSEMBLY__ */

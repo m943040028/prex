@@ -55,14 +55,11 @@
 
 
 /* default msr for starting user program */
-#if 0
 #ifdef CONFIG_MMU
 #define MSR_DFLT	(uint32_t)(MSR_EE | MSR_PR | MSR_ME | MSR_IR | MSR_DR)
 #else
 #define MSR_DFLT	(uint32_t)(MSR_EE | MSR_PR | MSR_ME)
 #endif
-#endif
-#define MSR_DFLT	(uint32_t)(MSR_EE | MSR_PR)
 
 /*
  * Special Purpose Register declarations.
@@ -82,16 +79,31 @@
 #define	SPR_PVR			287	/* processor version register */
 
 #if defined(CONFIG_PPC_BOOKE)
-#define	SPR_IVPR		0x3f	/* interrupt vector prefix register */
-#define	SPR_EVPR		0x3d6	/* exception vector prefix register */
+#define	SPR_EVPR		0x3D6	/* exception vector prefix register */
+#define SPR_PID			0x030
+#define SPR_DEAR		0x03D	/* Data Error Address Register */
+#define SPR_ESR			0x03E	/* Exception Syndrome Register */
+#define	SPR_IVPR		0x03F	/* interrupt vector prefix register */
 
-/* 
- * Below is not in Book-E Architecture, but it's needed by Qemu 
- * (since Qemu is not yet properly implement Book-E Architecture)
- */
-#define SPR_ZPR			0x3b0	/* zone protection register */
-#define SPR_PID			0x3b1
-#endif
+#define SPR_IVOR0		0x190	/* Interrupt Vector Offset Register 0 */
+#define SPR_IVOR1		0x191	/* Interrupt Vector Offset Register 1 */
+#define SPR_IVOR2		0x192	/* Interrupt Vector Offset Register 2 */
+#define SPR_IVOR3		0x193	/* Interrupt Vector Offset Register 3 */
+#define SPR_IVOR4		0x194	/* Interrupt Vector Offset Register 4 */
+#define SPR_IVOR5		0x195	/* Interrupt Vector Offset Register 5 */
+#define SPR_IVOR6		0x196	/* Interrupt Vector Offset Register 6 */
+#define SPR_IVOR7		0x197	/* Interrupt Vector Offset Register 7 */
+#define SPR_IVOR8		0x198	/* Interrupt Vector Offset Register 8 */
+#define SPR_IVOR9		0x199	/* Interrupt Vector Offset Register 9 */
+#define SPR_IVOR10		0x19a	/* Interrupt Vector Offset Register 10 */
+#define SPR_IVOR11		0x19b	/* Interrupt Vector Offset Register 11 */
+#define SPR_IVOR12		0x19c	/* Interrupt Vector Offset Register 12 */
+#define SPR_IVOR13		0x19d	/* Interrupt Vector Offset Register 13 */
+#define SPR_IVOR14		0x19e	/* Interrupt Vector Offset Register 14 */
+#define SPR_IVOR15		0x19f	/* Interrupt Vector Offset Register 15 */
+
+
+#endif /* CONFIG_PPC_BOOKE */
 
 #if defined(CONFIG_PPC_BOOKE)
 /* Tag portion */
@@ -120,9 +132,38 @@
 #define TLB_I		0x00000004	/* Caching is inhibited */
 #define TLB_M		0x00000002	/* Memory is coherent */
 #define TLB_G		0x00000001	/* Memory is guarded from prefetch */
+
+/* Bit definitions related to the ESR. */
+#define ESR_MCI		0x80000000	/* Machine Check - Instruction */
+#define ESR_IMCP	0x80000000	/* Instr. Machine Check - Protection */
+#define ESR_IMCN	0x40000000	/* Instr. Machine Check - Non-config */
+#define ESR_IMCB	0x20000000	/* Instr. Machine Check - Bus error */
+#define ESR_IMCT	0x10000000	/* Instr. Machine Check - Timeout */
+#define ESR_PIL		0x08000000	/* Program Exception - Illegal */
+#define ESR_PPR		0x04000000	/* Program Exception - Privileged */
+#define ESR_PTR		0x02000000	/* Program Exception - Trap */
+#define ESR_FP		0x01000000	/* Floating Point Operation */
+#define ESR_DST		0x00800000	/* Storage Exception - Data miss */
+#define ESR_DIZ		0x00400000	/* Storage Exception - Zone fault */
+#define ESR_ST		0x00800000	/* Store Operation */
+#define ESR_DLK		0x00200000	/* Data Cache Locking */
+#define ESR_ILK		0x00100000	/* Instr. Cache Locking */
+#define ESR_PUO		0x00040000	/* Unimplemented Operation exception */
+#define ESR_BO		0x00020000	/* Byte Ordering */
+
 #endif /* CONFIG_PPC_BOOKE */
 
 #ifndef __ASSEMBLY__
+
+#define mtspr(reg, val) \
+	__asm__ volatile("mtspr %0,%1" : : "K"(reg), "r"(val))
+
+#ifdef __GNUC__
+#define mfspr(reg) \
+	({ register uint32_t val; \
+	__asm__ volatile("mfspr %0,%1" : "=r"(val) : "K"(reg)); \
+	val; })
+#endif
 
 __BEGIN_DECLS
 void	 outb(int, u_char);

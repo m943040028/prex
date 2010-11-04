@@ -104,7 +104,8 @@ copyinstr(const void *uaddr, void *kaddr, size_t len)
 }
 
 #if defined(CONFIG_MMU)
-void write_tlb_entry(uint8_t entry, uint32_t data, uint32_t tag)
+void __inline
+write_tlb_entry(uint8_t entry, uint32_t data, uint32_t tag)
 {
 	__asm__ __volatile__(
 		"tlbwe  %1, %0, 1\n" /* data */

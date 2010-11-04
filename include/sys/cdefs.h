@@ -76,6 +76,7 @@
 #ifdef __GNUC__
 #define	__packed	__attribute__((__packed__))
 #define	__noreturn	__attribute__((__noreturn__))
+#define __always_inline	__attribute__((always_inline))
 #elif defined(__lint__)
 #define	__packed	/* delete */
 #define	__noreturn	/* delete */

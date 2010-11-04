@@ -28,7 +28,7 @@
  */
 
 /*
- * locore.S - low level platform support
+ * locore_44x.S - low level platform support for AMCC PowerPC 44x series
  */
 
 /*
@@ -48,13 +48,21 @@
 #include <trap.h>
 #include <cpu.h>
 
+#if !defined(CONFIG_MMU)
+#error "It's meaningless to disable MMU on AMCC PowerPC 44x architecture."
+#endif
+
 	.section ".text","ax"
 
 #define ABS_JUMP(target) \
-	lis	r12, (target)@ha ; \
-	ori	r12, r12, (target)@l ; \
-	mtctr	r12 ;\
-	bctr
+	mfmsr	r12; \
+	ori	r12, r12, (MSR_IR|MSR_DR); \
+	mtspr	SPR_SRR1, r12; /* return msr */	\
+	lis	r12, (target)@ha; \
+	ori	r12, r12, (target)@l; /* return addr */ \
+	mtspr	SPR_SRR0, r12; \
+	sync; \
+	rfi
 
 /*
  * Macro to save all registers.
@@ -161,8 +169,8 @@
  * Macro to build an exception entry.
  * We assume interrupts are disabled.
  */
-#define EXCEPTION_ENTRY(offset, name, id, xfer) \
-	.skip offset - (. - exception_vector); \
+#define EXCEPTION_ENTRY(name, id, xfer) \
+	.align 5; \
 exception_##name: \
 	mtsprg1 r1;		/* sprg1: current sp */ \
 	mtsprg3	r10; 		/* sprg3: saved r10 */ \
@@ -179,17 +187,17 @@ exception_##name: \
 	li	r10, id; \
 	ABS_JUMP(xfer);
 
-#define INTR_ENTRY(offset, name, id) \
-		EXCEPTION_ENTRY(offset, name, id, interrupt_common)
+#define INTR_ENTRY(name, id) \
+		EXCEPTION_ENTRY(name, id, interrupt_common)
 
-#define TRAP_ENTRY(offset, name, id) \
-		EXCEPTION_ENTRY(offset, name, id, trap_common)
+#define TRAP_ENTRY(name, id) \
+		EXCEPTION_ENTRY(name, id, trap_common)
 
 /*
  * Macro to build a system call entry.
  */
-#define SYSC_ENTRY(offset, name, id) \
-	.skip offset - (. - exception_vector); \
+#define SYSC_ENTRY(name, id) \
+	.align 5; \
 exception_##name: \
 	mtsprg1 r1;		/* sprg1: current sp */ \
 	mfsprg0	r1; 		/* Load kernel stack */ \
@@ -197,29 +205,34 @@ exception_##name: \
 	li	r10, id; \
 	ABS_JUMP(syscall_entry);
 
+#define RESET_ENTRY(name) \
+	.align 5; \
+exception_##name: \
+	ABS_JUMP(kernel_start)
+
+#define SET_IVOR(vector_number, name) \
+	li	r26, exception_##name@l; \
+	mtspr	SPR_IVOR##vector_number, r26; \
+	sync
+
 /*
  * Exception vectors
  */
 .globl	exception_vector
 exception_vector:
-	.long	0
-
-	.skip 0x100 - (. - exception_vector); \
-ENTRY(system_reset)
-	ABS_JUMP(kernel_start)
-
-TRAP_ENTRY(0x200, machine_check  ,TRAP_MACHINE_CHECK)
-TRAP_ENTRY(0x300, dsi            ,TRAP_DSI)
-TRAP_ENTRY(0x400, isi            ,TRAP_ISI)
-INTR_ENTRY(0x500, external_intr  ,TRAP_EXT_INTERRUPT)
-TRAP_ENTRY(0x600, alignment      ,TRAP_ALIGNMENT)
-TRAP_ENTRY(0x700, program        ,TRAP_PROGRAM)
-TRAP_ENTRY(0x800, fp_unavailable ,TRAP_FP_UNAVAILABLE)
-INTR_ENTRY(0x900, decrementer    ,TRAP_DECREMENTER)
-SYSC_ENTRY(0xc00, syscall        ,TRAP_SYSTEM_CALL)
-TRAP_ENTRY(0xd00, trace          ,TRAP_TRACE)
-TRAP_ENTRY(0xe00, fp_assist      ,TRAP_FP_ASSIST)
-TRAP_ENTRY(0x1100, data_tlb_miss ,TRAP_DATA_TLB_MISS)
+RESET_ENTRY(system_reset)
+TRAP_ENTRY(machine_check  ,TRAP_MACHINE_CHECK)
+TRAP_ENTRY(dsi            ,TRAP_DSI)
+TRAP_ENTRY(isi            ,TRAP_ISI)
+INTR_ENTRY(external_intr  ,TRAP_EXT_INTERRUPT)
+TRAP_ENTRY(alignment      ,TRAP_ALIGNMENT)
+TRAP_ENTRY(program        ,TRAP_PROGRAM)
+TRAP_ENTRY(fp_unavailable ,TRAP_FP_UNAVAILABLE)
+INTR_ENTRY(decrementer    ,TRAP_DECREMENTER)
+SYSC_ENTRY(syscall        ,TRAP_SYSTEM_CALL)
+TRAP_ENTRY(trace          ,TRAP_TRACE)
+TRAP_ENTRY(fp_assist      ,TRAP_FP_ASSIST)
+TRAP_ENTRY(data_tlb_miss ,TRAP_DATA_TLB_MISS)
 
 .globl	exception_vector_end
 exception_vector_end:
@@ -264,11 +277,57 @@ ENTRY(kernel_start)
 	cmplw	cr0, r3, r4
 	blt	1b
 
-	/*
-	 * Call kernel main routine
-	 */
-	b	main
-	/* NOTREACHED */
+	tlbia			/* Invalidate all TLB entries */
+	isync
+
+	li	r3, 0
+	mtspr	SPR_PID, r3	/* PID=0 to disable protection */
+	isync
+
+	/* Lock first 16MB of memory into UTLB to enable flat mapping */
+	lis	r4, KERNBASE@ha
+	ori     r4, r4, (TLB_VALID|TLB_PAGESZ(PAGESZ_16M))
+
+	ori	r3, r3, (TLB_WR|TLB_EX)	/* Set the write and execute bits */
+
+	li	r2, 63 		/* r2 = utlb entry */
+	tlbwe	r3, r2, 1	/* write tlblo(Data entry) */
+	tlbwe	r4, r2, 0	/* write tlbhi(Tag entry) */
+	isync
+
+	/* set interrupt vector */
+	SET_IVOR(0, system_reset)
+	SET_IVOR(1, machine_check)
+	SET_IVOR(2, dsi)
+	SET_IVOR(3, isi)
+	SET_IVOR(4, external_intr)
+	SET_IVOR(5, alignment)
+	SET_IVOR(6, program)
+	SET_IVOR(7, fp_unavailable)
+	SET_IVOR(8, decrementer)
+	SET_IVOR(9, syscall)
+	SET_IVOR(10, trace)
+	SET_IVOR(11, fp_assist)
+	SET_IVOR(13, data_tlb_miss)
+
+	/* Establish the interrupt vector base */
+	lis     r4, exception_vector@h	/* IVPR only uses the high 16-bits */
+#if defined(CONFIG_QEMU_WORKAROUND)
+	lis	r3, KERNBASE@h
+	sub	r4, r4, r3
+#endif
+	mtspr   SPR_IVPR, r4
+
+	/* enable intrustion and data translation */
+	mfmsr	r3
+	ori	r3, r3, (MSR_IR|MSR_DR)
+	mtspr	SPR_SRR1, r3		/* return msr */
+	lis	r3, main@ha
+	ori	r3, r3, main@l		/* return addr */
+	mtspr	SPR_SRR0, r3
+	sync
+	rfi
+	/* never reached */
 
 
 /*

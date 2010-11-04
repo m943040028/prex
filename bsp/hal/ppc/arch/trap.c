@@ -41,6 +41,10 @@
 #include <context.h>
 #include <locore.h>
 
+#if defined(CONFIG_MMU)
+#include <vm.h>
+#endif
+
 #include <sys/signal.h>
 
 #ifdef DEBUG
@@ -63,6 +67,9 @@ static const char *const trap_name[] = {
 	"System call",			/*  c */
 	"Trace",			/*  d */
 	"Floating point assist",	/*  e */
+	"",				/*  f */
+	"",				/* 10 */
+	"Data TLB miss",		/* 11 */
 };
 #define MAXTRAP (sizeof(trap_name) / sizeof(void *) - 1)
 #endif	/* DEBUG */
@@ -90,6 +97,32 @@ static const int exception_map[] = {
 	SIGFPE,		/* fp assist */
 };
 
+#ifdef CONFIG_MMU
+void handle_tlb_miss(struct cpu_regs *regs)
+{
+	uint32_t esr, dear;
+	vm_map_t curmap;
+
+	printf("tlb miss (%s)\n", curtask->name);
+
+	esr = mfspr(SPR_ESR);
+	dear = mfspr(SPR_DEAR);
+	printf("esr = %08x, dear = %08x\n", esr, dear);
+	printf("fault address = %08x\n", regs->lr);
+
+	curmap = curtask->map;
+	/* 
+	 * Search on current page table
+	 */
+	printf("fault entry = %08x\n", (uint32_t *)PAGE_DIR(dear));
+	printf("curmap->pgd = %08x\n", curmap->pgd);
+
+	if (curmap->pgd[PAGE_DIR(dear)] & PTE_PRESENT)
+		printf("pte present\n");
+	for (;;) ;
+}
+#endif
+
 /*
  * Trap handler
  * Invoke the exception handler if it is needed.
@@ -99,6 +132,13 @@ trap_handler(struct cpu_regs *regs)
 {
 	uint32_t trap_no = regs->trap_no;
 
+#ifdef CONFIG_MMU
+	switch (trap_no) {
+	case TRAP_DATA_TLB_MISS:
+		handle_tlb_miss(regs);
+		return;
+	};
+#endif
 #ifdef DEBUG
 	printf("============================\n");
 	printf("Trap %x: %s\n", trap_no, trap_name[trap_no]);

@@ -47,6 +47,9 @@ relocate_rela(Elf32_Rela *rela, Elf32_Addr sym_val, char *target_sect)
 
 	where = (Elf32_Addr *)(target_sect + rela->r_offset);
 	val = sym_val + rela->r_addend;
+#if defined(CONFIG_MMU)
+	val = (uint32_t) ptokv(val);
+#endif
 
 	switch (ELF32_R_TYPE(rela->r_info)) {
 	case R_PPC_NONE:

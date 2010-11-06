@@ -1,5 +1,5 @@
 
-SRCS:=		ppc/arch/locore.S \
+SRCS:=		ppc/arch/locore_44x.S \
 		ppc/arch/cpufunc.S \
 		ppc/arch/trap.c \
 		ppc/arch/context.c \
@@ -7,11 +7,9 @@ SRCS:=		ppc/arch/locore.S \
 		ppc/arch/clock.c \
 		ppc/bamboo/io.c \
 		ppc/bamboo/machdep.c \
-		ppc/bamboo/interrupt.c
+		ppc/bamboo/interrupt.c \
+		ppc/arch/mmu_booke.c
 
-ifeq ($(CONFIG_MMU),y)
-SRCS+=		ppc/arch/mmu_booke.c
-endif
 ifeq ($(DEBUG),1)
 SRCS+=		ppc/bamboo/diag.c
 endif

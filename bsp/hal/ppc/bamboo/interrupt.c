@@ -210,6 +210,7 @@ interrupt_handler(struct cpu_regs *regs)
 void
 interrupt_init(void)
 {
+#if 0
 	int i;
 
 	irq_level = IPL_NONE;
@@ -235,4 +236,5 @@ interrupt_init(void)
 
 	outb(PIC_S + 1, 0xff);	/* Mask all */
 	outb(PIC_M + 1, 0xfb);	/* Mask all except IRQ2 (cascade) */
+#endif
 }

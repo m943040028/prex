@@ -10,8 +10,8 @@ DEFINES=	$(addprefix -D,$(DEFS))
 #CFLAGS+=	-c -Os -ansi -pedantic -Wall -Wundef -Wstrict-prototypes \
 #		-Wpointer-arith -nostdinc -fno-strict-aliasing $(GCCFLAGS)
 
-# remove -Os, for debugging
-CFLAGS+=	-c -ansi -pedantic -Wall -Wundef -Wstrict-prototypes \
+# remove -Os, -pedantic
+CFLAGS+=	-c -ansi -Wall -Wundef -Wstrict-prototypes \
 		-Wpointer-arith -nostdinc -fno-strict-aliasing $(GCCFLAGS)
 CPPFLAGS+=	$(DEFINES) -I. $(addprefix -I,$(INCSDIR))
 ACPPFLAGS+=	-D__ASSEMBLY__
@@ -29,6 +29,7 @@ endif
 
 ifeq ($(_STRICT_),1)
 CFLAGS+=	-Werror
+ASFLAGS+=	--fatal-warnings
 endif
 
 ifdef LDSCRIPT

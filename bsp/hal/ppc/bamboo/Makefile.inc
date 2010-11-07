@@ -4,7 +4,7 @@ SRCS:=		ppc/arch/locore_44x.S \
 		ppc/arch/trap.c \
 		ppc/arch/context.c \
 		ppc/arch/cpu.c \
-		ppc/arch/clock.c \
+		ppc/arch/clock_booke.c \
 		ppc/bamboo/io.c \
 		ppc/bamboo/machdep.c \
 		ppc/bamboo/interrupt.c \

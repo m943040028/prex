@@ -46,21 +46,6 @@
 static pgd_t boot_pgd = (pgd_t)BOOT_PGD;
 
 
-<<<<<<< HEAD
-static void write_tlb_entry(uint8_t entry, uint32_t data, uint32_t tag)
-{
-	__asm__ __volatile__(
-		"tlbwe	%1, %0, 1\n" /* data */
-		"tlbwe	%2, %0, 0\n" /* tag  */
-		"isync\n"
-	: /* no output */
-	: "r" (entry), "r" (data), "r" (tag)
-	: "memory"
-	);
-}
-
-=======
->>>>>>> 6bbc0f265d9db2270e7cc3f32a640a430690ac5e
 /*
  * Map physical memory range into virtual address
  *

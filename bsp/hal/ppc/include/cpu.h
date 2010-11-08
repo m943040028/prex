@@ -104,8 +104,6 @@
 #define SPR_IVOR14		0x19e	/* Interrupt Vector Offset Register 14 */
 #define SPR_IVOR15		0x19f	/* Interrupt Vector Offset Register 15 */
 #define	SPR_EVPR		0x3D6	/* Exception Vector Prefix Register */
-
-
 #endif /* CONFIG_PPC_BOOKE */
 
 #if defined(CONFIG_PPC_BOOKE)

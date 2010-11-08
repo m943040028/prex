@@ -54,15 +54,22 @@
 
 	.section ".text","ax"
 
+#if defined(CONFIG_QEMU_WORKAROUND)
 #define ABS_JUMP(target) \
+	mtsprg3	r12; /* save r12 */ \
 	mfmsr	r12; \
 	ori	r12, r12, (MSR_IR|MSR_DR); \
 	mtspr	SPR_SRR1, r12; /* return msr */	\
 	lis	r12, (target)@ha; \
 	ori	r12, r12, (target)@l; /* return addr */ \
 	mtspr	SPR_SRR0, r12; \
+	mfsprg3	r12; \
 	sync; \
 	rfi
+#else
+#define ABS_JUMP(target) \
+	b	(target)
+#endif
 
 /*
  * Macro to save all registers.
@@ -172,6 +179,8 @@
 #define EXCEPTION_ENTRY(name, id, xfer) \
 	.align 5; \
 exception_##name: \
+	ABS_JUMP(virt_##name); \
+virt_##name:; \
 	mtsprg1 r1;		/* sprg1: current sp */ \
 	mtsprg3	r10; 		/* sprg3: saved r10 */ \
 	mfcr	r10; 		/* r10:	saved cr */ \
@@ -185,7 +194,7 @@ exception_##name: \
 	mfsprg3 r10;		/* Restore r10 */ \
 	SAVE_ALL ; \
 	li	r10, id; \
-	ABS_JUMP(xfer);
+	b	xfer;
 
 #define INTR_ENTRY(name, id) \
 		EXCEPTION_ENTRY(name, id, interrupt_common)
@@ -368,8 +377,8 @@ ENTRY(interrupt_common)
 interrupt_ret:
 	mr	r1, r30			/* Restore stack */
 	RESTORE_ALL
-	mfsprg1	r1			/* restore original sp */
-	rfi
+	mfsprg1	r1			/* restore original sp */	
+	blr
 
 /*
  * System call entry
@@ -402,7 +411,7 @@ syscall_ret:
 	mtmsr	r27
 	RESTORE_ALL
 	mfsprg1	r1			/* Restore original sp */
-	rfi
+	blr
 
 /*
  * Common entry for exceptions.
@@ -426,7 +435,7 @@ ENTRY(trap_common)
 
 	RESTORE_ALL
 	mfsprg1	r1			/* restore original sp */
-	rfi
+	blr
 
 /*
  * Switch register context.

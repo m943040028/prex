@@ -28,7 +28,7 @@
  */
 
 /*
- * interrupt.c - interrupt management routines for intel 8259 chip
+ * interrupt.c - interrupt management routines for open interrupt controller
  */
 
 #include <kernel.h>
@@ -176,12 +176,14 @@ interrupt_handler(struct cpu_regs *regs)
 {
 	int vector;
 	int old_ipl, new_ipl;
-
+printf("%s:%08x\n", __func__, regs->gr[1]);
 	/* Handle decrementer interrupt */
 	if (regs->trap_no == TRAP_DECREMENTER) {
+		/*trap_dump(regs);*/
 		clock_isr(NULL);
 		return;
 	}
+	return;
 
 	/* Find pending interrupt */
 	vector = interrupt_lookup();

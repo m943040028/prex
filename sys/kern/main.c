@@ -41,6 +41,7 @@
 #include <sched.h>
 #include <exception.h>
 #include <irq.h>
+#include <trap.h>
 #include <ipc.h>
 #include <device.h>
 #include <sync.h>
@@ -96,6 +97,9 @@ main(void)
 	 */
 	irq_init();
 	clock_init();
+#ifdef DEBUG
+	trap_unit_test();
+#endif
 	device_init();
 
 	/*

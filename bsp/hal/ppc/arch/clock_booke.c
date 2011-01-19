@@ -37,9 +37,8 @@
 #include <irq.h>
 #include <cpufunc.h>
 #include <cpu.h>
-#include <sys/ipl.h>
 
-#define DECR_COUNT	100000
+#define DECR_COUNT	100
 
 /*
  * Timer handler.

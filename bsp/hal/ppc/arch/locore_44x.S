@@ -37,6 +37,10 @@
  *  SPRG1 - saved stack pointer
  *  SPRG2 - interrupt nest counter
  *  SPRG3 - scratch pad
+ *
+ * For QEMU_WORKAROUND:
+ *  SPRG6 - saved SRR1
+ *  SPRG7 - saved SRR0
  */
 
 #include <conf/config.h>
@@ -57,13 +61,17 @@
 #if defined(CONFIG_QEMU_WORKAROUND)
 #define ABS_JUMP(target) \
 	mtsprg3	r12; /* save r12 */ \
+	mfspr	r12, SPR_SRR1; \
+	mtspr	0x116, r12; /* save srr1 */ \
+	mfspr	r12, SPR_SRR0; \
+	mtspr	0x117, r12; /* save srr0 */ \
 	mfmsr	r12; \
 	ori	r12, r12, (MSR_IR|MSR_DR); \
 	mtspr	SPR_SRR1, r12; /* return msr */	\
 	lis	r12, (target)@ha; \
-	ori	r12, r12, (target)@l; /* return addr */ \
-	mtspr	SPR_SRR0, r12; \
-	mfsprg3	r12; \
+	ori	r12, r12, (target)@l; \
+	mtspr	SPR_SRR0, r12; /* return addr */ \
+	mfsprg3	r12; /* restore r12 */ \
 	sync; \
 	rfi
 #else
@@ -193,6 +201,8 @@ virt_##name:; \
 2:	mtcr	r10; 		/* Restore cr */ \
 	mfsprg3 r10;		/* Restore r10 */ \
 	SAVE_ALL ; \
+	mfspr	r10, 0x116; \
+	mfspr	r10, 0x117; \
 	li	r10, id; \
 	b	xfer;
 
@@ -343,8 +353,13 @@ ENTRY(kernel_start)
  * r3 - trap id
  */
 ENTRY(interrupt_common)
+#if defined(CONFIG_QEMU_WORKAROUND)
+	mfspr	r2, 0x116
+	stw	r2, REG_SRR1(r1)
+	mfspr	r2, 0x117
+	stw	r2, REG_SRR0(r1)
+#endif
 	stw	r10, CTX_TRAPNO(r1)
-
 	mfsprg2	r28			/* r28: current IRQ nesting level */
 	addi	r3, r28, 1		/* Increment IRQ nesting level */
 	mtsprg2	r3
@@ -361,6 +376,8 @@ ENTRY(interrupt_common)
 	mr	r3, r30
 	bl	interrupt_handler	/* Call main interrupt handler */
 
+	mfsprg2	r28
+	subi	r28, r28, 1
 	mtsprg2	r28			/* Restore IRQ nesting level */
 	cmpwi	cr0, r28, 0		/* Outermost interrupt? */
 	bne	interrupt_ret
@@ -377,7 +394,7 @@ ENTRY(interrupt_common)
 interrupt_ret:
 	mr	r1, r30			/* Restore stack */
 	RESTORE_ALL
-	mfsprg1	r1			/* restore original sp */	
+	mfsprg1	r1			/* restore original sp */
 	blr
 
 /*
@@ -418,6 +435,12 @@ syscall_ret:
  * r3 - trap id
  */
 ENTRY(trap_common)
+#if defined(CONFIG_QEMU_WORKAROUND)
+	mfspr	r2, 0x116
+	stw	r2, REG_SRR1(r1)
+	mfspr	r2, 0x117
+	stw	r2, REG_SRR0(r1)
+#endif
 	stw	r10, CTX_TRAPNO(r1)
 
 	mfsprg2	r3			/* increment nest counter */

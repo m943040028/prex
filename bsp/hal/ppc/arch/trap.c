@@ -107,16 +107,15 @@ void handle_tlb_miss(struct cpu_regs *regs)
 
 	esr = mfspr(SPR_ESR);
 	dear = mfspr(SPR_DEAR);
-	printf("esr = %08x, dear = %08x\n", esr, dear);
-	printf("fault address = %08x\n", regs->lr);
+	printf("fault instruction address = %08x\n", regs->srr0);
+	printf("fault data access address = %08x\n", dear);
+	printf("fault MSR = %08x\n", regs->srr1);
+	printf("ESR = %08x\n", esr);
 
 	curmap = curtask->map;
 	/* 
 	 * Search on current page table
 	 */
-	printf("fault entry = %08x\n", (uint32_t *)PAGE_DIR(dear));
-	printf("curmap->pgd = %08x\n", curmap->pgd);
-
 	if (curmap->pgd[PAGE_DIR(dear)] & PTE_PRESENT)
 		printf("pte present\n");
 	for (;;) ;
@@ -135,10 +134,12 @@ trap_handler(struct cpu_regs *regs)
 #ifdef CONFIG_MMU
 	switch (trap_no) {
 	case TRAP_DATA_TLB_MISS:
+		trap_dump(regs);
 		handle_tlb_miss(regs);
 		return;
 	};
 #endif
+#if 1
 #ifdef DEBUG
 	printf("============================\n");
 	printf("Trap %x: %s\n", trap_no, trap_name[trap_no]);
@@ -146,6 +147,7 @@ trap_handler(struct cpu_regs *regs)
 
 	trap_dump(regs);
 	for (;;) ;
+#endif
 #endif
 	if ((regs->srr1 & MSR_PR) != MSR_PR)
 		panic("Kernel exception");
@@ -155,6 +157,16 @@ trap_handler(struct cpu_regs *regs)
 }
 
 #ifdef DEBUG
+void delay(int loop) {
+	int i = 0;
+	for (; i < loop; i ++);
+}
+
+void
+trap_unit_test(void)
+{
+}
+
 void
 trap_dump(struct cpu_regs *r)
 {

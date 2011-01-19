@@ -59,6 +59,7 @@
 __BEGIN_DECLS
 void	 trap_handler(struct cpu_regs *);
 void	 trap_dump(struct cpu_regs *);
+void	 trap_unit_test(void);
 __END_DECLS
 
 #endif /* !__ASSEMBLY__ */

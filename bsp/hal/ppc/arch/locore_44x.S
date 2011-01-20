@@ -394,6 +394,13 @@ ENTRY(interrupt_common)
 interrupt_ret:
 	mr	r1, r30			/* Restore stack */
 	RESTORE_ALL
+	/* for debug only */
+	mtsprg3	r2
+	mflr	r2
+	add.	r2, r2, r2		/* test if lr == 0 */
+	beq	.
+	mfsprg3	r2
+	/* end */
 	mfsprg1	r1			/* restore original sp */
 	blr
 

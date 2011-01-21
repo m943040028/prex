@@ -37,6 +37,7 @@ options 	CACHE		# Cache memory
 options 	ROMBOOT		# Boot from ROM
 #options 	BOOTDISK	# Disk for /boot directory
 options		QEMU_WORKAROUND
+options		DEBUG_CONTEXT_SWITCH
 
 #
 # General setup

@@ -176,7 +176,7 @@ interrupt_handler(struct cpu_regs *regs)
 {
 	int vector;
 	int old_ipl, new_ipl;
-/*printf("%s:%08x\n", __func__, regs->gr[1]);*/
+
 	/* Handle decrementer interrupt */
 	if (regs->trap_no == TRAP_DECREMENTER) {
 		clock_isr(NULL);

@@ -201,8 +201,6 @@ virt_##name:; \
 2:	mtcr	r10; 		/* Restore cr */ \
 	mfsprg3 r10;		/* Restore r10 */ \
 	SAVE_ALL ; \
-	mfspr	r10, 0x116; \
-	mfspr	r10, 0x117; \
 	li	r10, id; \
 	b	xfer;
 
@@ -359,7 +357,19 @@ ENTRY(interrupt_common)
 	mfspr	r2, 0x117
 	stw	r2, REG_SRR0(r1)
 #endif
+#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
+	addis	r2, 0, 0xdeaddead@ha
+	addi	r2, r2, 0xdeaddead@l
+	stw	r2, START_FRAME(r1)
+	addis	r2, 0, 0xbeafbeaf@ha
+	addi	r2, r2, 0xbeafbeaf@l
+	stw	r2, END_FRAME(r1)
+#endif
 	stw	r10, CTX_TRAPNO(r1)
+
+	li	r3, 15
+	bl	splx			/* splx(15) */
+
 	mfsprg2	r28			/* r28: current IRQ nesting level */
 	addi	r3, r28, 1		/* Increment IRQ nesting level */
 	mtsprg2	r3
@@ -378,7 +388,7 @@ ENTRY(interrupt_common)
 
 	mfsprg2	r28
 	subi	r28, r28, 1
-	mtsprg2	r28			/* Restore IRQ nesting level */
+	mtsprg2	r28			/* Decrement IRQ nesting level */
 	cmpwi	cr0, r28, 0		/* Outermost interrupt? */
 	bne	interrupt_ret
 	bl	sched_unlock		/* Try to preempt */
@@ -434,6 +444,13 @@ syscall_ret:
 	ori	r27, r27, MSR_EE@l
 	mtmsr	r27
 	RESTORE_ALL
+	/* for debug only */
+	mtsprg3	r2
+	mflr	r2
+	add.	r2, r2, r2		/* test if lr == 0 */
+	beq	.
+	mfsprg3	r2
+	/* end */
 	mfsprg1	r1			/* Restore original sp */
 	blr
 
@@ -464,6 +481,13 @@ ENTRY(trap_common)
 	mtsprg2	r3
 
 	RESTORE_ALL
+	/* for debug only */
+	mtsprg3	r2
+	mflr	r2
+	add.	r2, r2, r2		/* test if lr == 0 */
+	beq	.
+	mfsprg3	r2
+	/* end */
 	mfsprg1	r1			/* restore original sp */
 	blr
 

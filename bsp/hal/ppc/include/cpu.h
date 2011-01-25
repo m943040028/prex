@@ -32,7 +32,7 @@
 
 #include <sys/cdefs.h>
 
-#define STKFRAME_LEN	8		/* length for stack frame */
+#define STKFRAME_LEN	80		/* length for stack frame */
 
 /*
  * Flags in MSR

@@ -42,6 +42,9 @@
  * dependent on this register format.
  */
 struct cpu_regs {
+#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
+	uint32_t start_magic;
+#endif
 	uint32_t	gr[32];		/* R0-R31 */
 	uint32_t	lr;
 	uint32_t	cr;
@@ -50,6 +53,9 @@ struct cpu_regs {
 	uint32_t	srr0;
 	uint32_t	srr1;
 	uint32_t	trap_no;	/* trap number */
+#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
+	uint32_t end_magic;
+#endif
 };
 
 /*
@@ -68,15 +74,9 @@ struct kern_regs {
  * Processor context
  */
 struct context {
-#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
-	uint32_t start_magic;
-#endif
 	struct kern_regs kregs;		/* kernel mode registers */
 	struct cpu_regs	*uregs;		/* user mode registers */
 	struct cpu_regs	*saved_regs;	/* saved user mode registers */
-#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
-	uint32_t end_magic;
-#endif
 };
 
 typedef struct context *context_t;	/* context id */

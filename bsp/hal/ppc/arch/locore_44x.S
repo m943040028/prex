@@ -367,9 +367,6 @@ ENTRY(interrupt_common)
 #endif
 	stw	r10, CTX_TRAPNO(r1)
 
-	li	r3, 15
-	bl	splx			/* splx(15) */
-
 	mfsprg2	r28			/* r28: current IRQ nesting level */
 	addi	r3, r28, 1		/* Increment IRQ nesting level */
 	mtsprg2	r3

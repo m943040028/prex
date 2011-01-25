@@ -146,6 +146,17 @@ trap_handler(struct cpu_regs *regs)
 	printf("============================\n");
 
 	trap_dump(regs);
+
+	{
+		int sp = regs->gr[1];
+		int i = sp - 0x500;
+		printf("dump stack:\n");
+		for (; i < sp + 0x100 ; i += 4*4) {
+			printf("0x%08x: %08x %08x %08x %08x\n",
+			      i, *(uint32_t *)(i), *(uint32_t *)(i+4),
+			      *(uint32_t *)(i+8), *(uint32_t *)(i+16));
+		}
+	}
 	for (;;) ;
 #endif
 #endif

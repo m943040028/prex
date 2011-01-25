@@ -348,7 +348,7 @@ ENTRY(kernel_start)
 
 /*
  * Common entry for interrupts.
- * r3 - trap id
+ * r10 - trap id
  */
 ENTRY(interrupt_common)
 #if defined(CONFIG_QEMU_WORKAROUND)
@@ -366,6 +366,16 @@ ENTRY(interrupt_common)
 	stw	r2, END_FRAME(r1)
 #endif
 	stw	r10, CTX_TRAPNO(r1)
+#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
+#if 1
+	mr	r30, r1			/* r30: trap frame */
+	subi	r1, r1, STKFRAME_LEN	/* Adjust stack frame for C routine */
+	mr	r3, r30
+	bl	trap_unit_test
+	bl	clock_isr
+	b	interrupt_ret
+#endif
+#endif
 
 	mfsprg2	r28			/* r28: current IRQ nesting level */
 	addi	r3, r28, 1		/* Increment IRQ nesting level */
@@ -401,13 +411,6 @@ ENTRY(interrupt_common)
 interrupt_ret:
 	mr	r1, r30			/* Restore stack */
 	RESTORE_ALL
-	/* for debug only */
-	mtsprg3	r2
-	mflr	r2
-	add.	r2, r2, r2		/* test if lr == 0 */
-	beq	.
-	mfsprg3	r2
-	/* end */
 	mfsprg1	r1			/* restore original sp */
 	blr
 
@@ -441,19 +444,12 @@ syscall_ret:
 	ori	r27, r27, MSR_EE@l
 	mtmsr	r27
 	RESTORE_ALL
-	/* for debug only */
-	mtsprg3	r2
-	mflr	r2
-	add.	r2, r2, r2		/* test if lr == 0 */
-	beq	.
-	mfsprg3	r2
-	/* end */
 	mfsprg1	r1			/* Restore original sp */
 	blr
 
 /*
  * Common entry for exceptions.
- * r3 - trap id
+ * r10 - trap id
  */
 ENTRY(trap_common)
 #if defined(CONFIG_QEMU_WORKAROUND)
@@ -462,8 +458,22 @@ ENTRY(trap_common)
 	mfspr	r2, 0x117
 	stw	r2, REG_SRR0(r1)
 #endif
+#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
+	addis	r2, 0, 0xdeaddead@ha
+	addi	r2, r2, 0xdeaddead@l
+	stw	r2, START_FRAME(r1)
+	addis	r2, 0, 0xbeafbeaf@ha
+	addi	r2, r2, 0xbeafbeaf@l
+	stw	r2, END_FRAME(r1)
+#endif
 	stw	r10, CTX_TRAPNO(r1)
-
+#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
+	mr	r3, r1
+	subi	r1, r1, STKFRAME_LEN	/* Adjust stack frame for C routine */
+	bl	trap_unit_test
+	addi	r1, r1, STKFRAME_LEN
+	b	trap_ret
+#endif
 	mfsprg2	r3			/* increment nest counter */
 	addi	r3, r3, 1
 	mtsprg2	r3
@@ -476,15 +486,8 @@ ENTRY(trap_common)
 	mfsprg2	r3			/* decrement nest counter */
 	addi	r3, r3, -1
 	mtsprg2	r3
-
+trap_ret:
 	RESTORE_ALL
-	/* for debug only */
-	mtsprg3	r2
-	mflr	r2
-	add.	r2, r2, r2		/* test if lr == 0 */
-	beq	.
-	mfsprg3	r2
-	/* end */
 	mfsprg1	r1			/* restore original sp */
 	blr
 

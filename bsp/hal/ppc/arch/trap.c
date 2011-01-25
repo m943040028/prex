@@ -149,12 +149,12 @@ trap_handler(struct cpu_regs *regs)
 
 	{
 		int sp = regs->gr[1];
-		int i = sp - 0x500;
+		int i = sp - 0x100;
 		printf("dump stack:\n");
-		for (; i < sp + 0x100 ; i += 4*4) {
+		for (; i < sp + 0x200 ; i += 4*4) {
 			printf("0x%08x: %08x %08x %08x %08x\n",
 			      i, *(uint32_t *)(i), *(uint32_t *)(i+4),
-			      *(uint32_t *)(i+8), *(uint32_t *)(i+16));
+			      *(uint32_t *)(i+8), *(uint32_t *)(i+12));
 		}
 	}
 	for (;;) ;
@@ -167,15 +167,23 @@ trap_handler(struct cpu_regs *regs)
 	exception_deliver();
 }
 
+#ifdef CONFIG_DEBUG_CONTEXT_SWITCH
+void
+trap_unit_test(struct cpu_regs *r)
+{
+	static int count = 1;
+	printf("trap_no: %d\n", r->trap_no);
+	trap_dump(r);
+
+	while (count--)
+		__asm__("sc");
+}
+#endif
+
 #ifdef DEBUG
 void delay(int loop) {
 	int i = 0;
 	for (; i < loop; i ++);
-}
-
-void
-trap_unit_test(void)
-{
 }
 
 void

@@ -321,7 +321,7 @@ ENTRY(kernel_start)
 	SET_IVOR(5, alignment)
 	SET_IVOR(6, program)
 	SET_IVOR(7, fp_unavailable)
-	SET_IVOR(9, syscall)
+	SET_IVOR(8, syscall)
 	SET_IVOR(10, decrementer)
 	SET_IVOR(11, fp_assist)
 	SET_IVOR(13, data_tlb_miss)
@@ -367,7 +367,7 @@ ENTRY(interrupt_common)
 #endif
 	stw	r10, CTX_TRAPNO(r1)
 #if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
-#if 1
+#if 0
 	mr	r30, r1			/* r30: trap frame */
 	subi	r1, r1, STKFRAME_LEN	/* Adjust stack frame for C routine */
 	mr	r3, r30
@@ -412,7 +412,7 @@ interrupt_ret:
 	mr	r1, r30			/* Restore stack */
 	RESTORE_ALL
 	mfsprg1	r1			/* restore original sp */
-	blr
+	rfi
 
 /*
  * System call entry
@@ -445,7 +445,7 @@ syscall_ret:
 	mtmsr	r27
 	RESTORE_ALL
 	mfsprg1	r1			/* Restore original sp */
-	blr
+	rfi
 
 /*
  * Common entry for exceptions.
@@ -468,11 +468,13 @@ ENTRY(trap_common)
 #endif
 	stw	r10, CTX_TRAPNO(r1)
 #if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
+#if 0
 	mr	r3, r1
 	subi	r1, r1, STKFRAME_LEN	/* Adjust stack frame for C routine */
 	bl	trap_unit_test
 	addi	r1, r1, STKFRAME_LEN
 	b	trap_ret
+#endif
 #endif
 	mfsprg2	r3			/* increment nest counter */
 	addi	r3, r3, 1
@@ -489,7 +491,7 @@ ENTRY(trap_common)
 trap_ret:
 	RESTORE_ALL
 	mfsprg1	r1			/* restore original sp */
-	blr
+	rfi
 
 /*
  * Switch register context.

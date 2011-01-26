@@ -171,12 +171,19 @@ trap_handler(struct cpu_regs *regs)
 void
 trap_unit_test(struct cpu_regs *r)
 {
-	static int count = 1;
-	printf("trap_no: %d\n", r->trap_no);
-	trap_dump(r);
+	static int count = 5;
 
-	while (count--)
+	printf("trap_no: %d, count: %d\n", r->trap_no, count);
+	trap_dump(r);
+/*
+	while (count > 0) {
+		count--;
 		__asm__("sc");
+	}
+
+	printf("\n\nreturn from trap:, count: %d\n", count);
+	trap_dump(r);
+*/
 }
 #endif
 

@@ -207,6 +207,7 @@ ns16550_probe(struct driver *self)
 
 	if (bus_read_8(COM_LSR) == 0xff)
 		return ENXIO;	/* Port is disabled */
+
 	return 0;
 }
 

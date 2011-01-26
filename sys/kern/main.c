@@ -95,8 +95,6 @@ main(void)
 	 * Enable interrupt and
 	 * initialize devices.
 	 */
-	__asm__("sc");
-	for (;;);
 	irq_init();
 	clock_init();
 	device_init();

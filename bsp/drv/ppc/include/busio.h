@@ -38,7 +38,11 @@
 #include <sys/types.h>
 
 /* temp!! */
+#if defined(CONFIG_MMU)
+#define IOBASE	0x0
+#else
 #define IOBASE	0x80000000
+#endif
 
 #define bus_read_8(addr)	(*((volatile uint8_t *)(IOBASE+addr)))
 #define bus_read_16(addr)	(*((volatile uint16_t *)(IOBASE+addr)))

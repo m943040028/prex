@@ -36,6 +36,7 @@ options 	CACHE		# Cache memory
 #options 	FPU		# Floating point unit
 options 	ROMBOOT		# Boot from ROM
 #options 	BOOTDISK	# Disk for /boot directory
+options		NUICS=1		# How Many Universal Interrupt Controller We have
 options		QEMU_WORKAROUND
 options		DEBUG_CONTEXT_SWITCH
 
@@ -98,7 +99,7 @@ device		ramdisk		# RAM disk
 # Hardware configuations
 #
 options		NS16550_BASE=0xef600300
-options		NS16550_IRQ=4
+options		NS16550_IRQ=26
 options		MC146818_BASE=0x70
 
 #

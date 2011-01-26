@@ -117,3 +117,4 @@ write_tlb_entry(uint8_t entry, uint32_t data, uint32_t tag)
 	);
 }
 #endif
+

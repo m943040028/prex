@@ -28,7 +28,7 @@
  */
 
 /*
- * interrupt.c - interrupt management routines for open interrupt controller
+ * interrupt.c - interrupt management routines for universal interrupt controller
  */
 
 #include <kernel.h>
@@ -43,14 +43,27 @@
 #include <sys/ipl.h>
 
 /* Number of IRQ lines */
-#define NIRQS		16
+#define NIRQS		(32*CONFIG_NUICS)
 
-/* I/O address for master/slave programmable interrupt controller */
-#define PIC_M           0x20
-#define PIC_S           0xa0
+/* Common IO Routines */
+#define UIC_DCR_BASE	0x0c0
+#define uic_write_reg(uic, reg, data) \
+	mtdcr((UIC_DCR_BASE+0x10*(uic)+(reg)), (data))
+#define uic_read_reg(uic, reg) \
+	mfdcr((UIC_DCR_BASE+0x10*(uic)+(reg)))
 
-/* Edge/level control register */
-#define ELCR            0x4d0
+/* UIC Registers */
+enum {
+	DCR_UICSR  = 0x000,
+	DCR_UICSRS = 0x001,
+	DCR_UICER  = 0x002,
+	DCR_UICCR  = 0x003,
+	DCR_UICPR  = 0x004,
+	DCR_UICTR  = 0x005,
+	DCR_UICMSR = 0x006,
+	DCR_UICVR  = 0x007,
+	DCR_UICVCR = 0x008,
+} uic_dcr_registers;
 
 /*
  * Interrupt priority level
@@ -75,8 +88,7 @@ update_mask(void)
 {
 	u_int mask = mask_table[irq_level];
 
-	outb(PIC_M + 1, mask & 0xff);
-	outb(PIC_S + 1, mask >> 8);
+	uic_write_reg(0, DCR_UICER, mask);
 }
 
 /*
@@ -87,7 +99,7 @@ update_mask(void)
 void
 interrupt_unmask(int vector, int level)
 {
-	u_int unmask = (u_int)~(1 << vector);
+	u_int enable_bit = (u_int)(0x80000000 >> vector);
 	int i, s;
 
 	s = splhigh();
@@ -97,7 +109,7 @@ interrupt_unmask(int vector, int level)
 	 * lower interrupt levels.
 	 */
 	for (i = 0; i < level; i++)
-		mask_table[i] &= unmask;
+		mask_table[i] |= enable_bit;
 	update_mask();
 	splx(s);
 }
@@ -109,13 +121,13 @@ interrupt_unmask(int vector, int level)
 void
 interrupt_mask(int vector)
 {
-	u_int mask = (u_int)(1 << vector);
+	u_int enable_bit = (u_int)(0x80000000 >> vector);
 	int i, level, s;
 
 	s = splhigh();
 	level = ipl_table[vector];
 	for (i = 0; i < level; i++)
-		mask_table[i] |= mask;
+		mask_table[i] &= ~enable_bit;
 	ipl_table[vector] = IPL_NONE;
 	update_mask();
 	splx(s);
@@ -128,20 +140,19 @@ interrupt_mask(int vector)
 void
 interrupt_setup(int vector, int mode)
 {
-	int port, s;
+	int  s;
 	u_int bit;
 	u_char val;
 
 	s = splhigh();
-	port = vector < 8 ? ELCR : ELCR + 1;
-	bit = (u_int)(1 << (vector & 7));
+	bit = (u_int)(0x80000000 >> vector);
 
-	val = inb(port);
-	if (mode == IMODE_LEVEL)
+	val = uic_read_reg(0, DCR_UICTR);
+	if (mode == IMODE_EDGE)
 		val |= bit;
 	else
 		val &= ~bit;
-	outb(port, val);
+	uic_write_reg(0, DCR_UICTR, val);
 	splx(s);
 }
 
@@ -151,14 +162,17 @@ interrupt_setup(int vector, int mode)
 static int
 interrupt_lookup(void)
 {
-	int irq;
+	int uicsr, irq = 0, bit_mask = 0x80000000;
 
-	outb(PIC_M, 0x0c);	/* poll and ack */
-	irq = inb(PIC_M) & 7;
-	if (irq == 2) {
-		outb(PIC_S, 0x0c);
-		irq = (inb(PIC_M) & 7) + 8;
+	uicsr = uic_read_reg(0, DCR_UICSR);
+
+	while (1) {
+		if (uicsr & bit_mask)
+			break;
+		bit_mask >>= 1;
+		irq++;
 	}
+
 	return irq;
 }
 
@@ -182,7 +196,6 @@ interrupt_handler(struct cpu_regs *regs)
 		clock_isr(NULL);
 		return;
 	}
-	return;
 
 	/* Find pending interrupt */
 	vector = interrupt_lookup();
@@ -211,7 +224,6 @@ interrupt_handler(struct cpu_regs *regs)
 void
 interrupt_init(void)
 {
-#if 0
 	int i;
 
 	irq_level = IPL_NONE;
@@ -220,22 +232,9 @@ interrupt_init(void)
 		ipl_table[i] = IPL_NONE;
 
 	for (i = 0; i < NIPLS; i++)
-		mask_table[i] = 0xfffb;
+		mask_table[i] = 0x0;
 
-	outb(PIC_M, 0x11);	/* Start initialization edge, master */
-	outb(PIC_M + 1, 0x00);	/* Set h/w vector = 0x0 */
-	outb(PIC_M + 1, 0x04);	/* Chain to slave (IRQ2) */
-	outb(PIC_M + 1, 0x01);	/* 8086 mode */
-
-	outb(PIC_S, 0x11);	/* Start initialization edge, master */
-	outb(PIC_S + 1, 0x08);	/* Set h/w vector = 0x8 */
-	outb(PIC_S + 1, 0x02);	/* Slave (cascade) */
-	outb(PIC_S + 1, 0x01);	/* 8086 mode */
-
-	outb(PIC_S, 0x0b);	/* Read ISR by default */
-	outb(PIC_M, 0x0b);	/* Read ISR by default */
-
-	outb(PIC_S + 1, 0xff);	/* Mask all */
-	outb(PIC_M + 1, 0xfb);	/* Mask all except IRQ2 (cascade) */
-#endif
+	for (i = 0; i < CONFIG_NUICS; i++)
+		/* mask all interrupts */
+		uic_write_reg(i, DCR_UICER, 0x0);
 }

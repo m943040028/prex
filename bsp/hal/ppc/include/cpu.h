@@ -193,20 +193,12 @@
 
 #ifndef __ASSEMBLY__
 
-#define mtspr(reg, val) \
-	__asm__ volatile("mtspr %0,%1" : : "K"(reg), "r"(val))
-
-#ifdef __GNUC__
-#define mfspr(reg) \
-	({ register uint32_t val; \
-	__asm__ volatile("mfspr %0,%1" : "=r"(val) : "K"(reg)); \
-	val; })
-#endif
-
 __BEGIN_DECLS
 void	 outb(int, u_char);
 u_char	 inb(int);
+#if defined(CONFIG_MMU)
 void	 write_tlb_entry(uint8_t, uint32_t, uint32_t);
+#endif
 __END_DECLS
 
 #endif /* !__ASSEMBLY__ */

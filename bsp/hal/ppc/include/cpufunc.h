@@ -33,6 +33,19 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
+#define mtspr(reg, val) \
+	__asm__ volatile("mtspr %0, %1" : : "K"(reg), "r"(val))
+
+#define mfspr(reg) \
+	({ register uint32_t val; \
+	__asm__ volatile("mfspr %0, %1" : "=r"(val) : "K"(reg)); \
+	val; })
+
+extern	void	 __mtdcr(uint16_t, uint32_t);
+extern	uint32_t __mfdcr(uint16_t);
+#define mtdcr(reg, val) __mtdcr(reg, val)
+#define mfdcr(reg) __mfdcr(reg)
+
 __BEGIN_DECLS
 uint32_t get_decr(void);
 void	 set_decr(uint32_t);

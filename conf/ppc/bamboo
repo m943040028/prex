@@ -33,6 +33,7 @@ options		PPC44x		# Processor type
 options		PPC_BOOKE	# PowerPC Book E compatible
 options 	MMU		# Memory management unit
 options 	CACHE		# Cache memory
+options		NTLB_ENTS=64	# How many TLB entries
 #options 	FPU		# Floating point unit
 options 	ROMBOOT		# Boot from ROM
 #options 	BOOTDISK	# Disk for /boot directory

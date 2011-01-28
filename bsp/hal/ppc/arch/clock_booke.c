@@ -35,8 +35,9 @@
 #include <kernel.h>
 #include <timer.h>
 #include <irq.h>
-#include <cpufunc.h>
 #include <cpu.h>
+#include <cpufunc.h>
+#include <mmu.h>
 
 #define DECR_COUNT	100
 
@@ -53,6 +54,9 @@ clock_isr(void *arg)
 
 	/* Reset decrementer */
 	mtspr(SPR_DECR, DECR_COUNT);
+
+	/* Update victim tlb index */
+	mmu_tlb_index_update();
 
 	s = splhigh();
 	timer_handler();

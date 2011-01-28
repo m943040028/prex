@@ -44,9 +44,13 @@ typedef uint32_t	*pte_t;		/* page table entry */
 /* page table entry */
 #define PTE_PRESENT	0x00000001
 #define PTE_WRITE       0x00000002
-#define PTE_USER        0x00000004
-#define PTE_NCACHE      0x00000004
+#define PTE_EXEC        0x00000004
+#define PTE_NCACHE	0x00000008
+#define PTE_WT		0x00000010
+#define PTE_USER	0x00000020
 #define PTE_ADDRESS	0xfffff000
+
+#define PTE_IO		PTE_NCACHE
 
 /*
  *  Virtual and physical address translation
@@ -54,9 +58,29 @@ typedef uint32_t	*pte_t;		/* page table entry */
 #define PAGE_DIR(virt)      (int)((((vaddr_t)(virt)) >> 22) & 0x3ff)
 #define PAGE_TABLE(virt)    (int)((((vaddr_t)(virt)) >> 12) & 0xff)
 
-#define pte_present(pgd, virt)  (pgd[PAGE_DIR(virt)] & PDE_PRESENT)
+/*
+ * Page Directory Operator
+ */
+#define pte_present(pgd, virt) (pgd[PAGE_DIR(virt)] & PDE_PRESENT)
 
+/*
+ * Page Table Entry Operator
+ */
 #define page_present(pte, virt) (pte[PAGE_TABLE(virt)] & PTE_PRESENT)
+#define page_writable(pte, virt) (pte[PAGE_TABLE(virt)] & PTE_WRITE)
+#define page_executable(pte, virt) (pte[PAGE_TABLE(virt)] & PTE_EXEC)
+#define page_io(pte, virt) (pte[PAGE_TABLE(virt)] & PTE_IO)
+#define page_user(pte, virt) (pte[PAGE_TABLE(virt)] & PTE_USER)
+
+/*
+ * TLB Entry Operator
+ */
+#define tlb_lock(tlb) ((tlb)->tlb_locked = 1)
+#define tlb_unlock(tlb) ((tlb)->tlb_locked = 0)
+#define tlb_locked(tlb) ((tlb)->tlb_locked)
+#define tlb_writalbe(tlb) ((tlb)->tlb_writable)
+#define tlb_cachable(tlb) ((tlb)->tlb_cachable)
+#define tlb_executable(tlb) ((tlb)->tlb_executable)
 
 #define vtopte(pgd, virt) \
             (pte_t)ptokv((pgd)[PAGE_DIR(virt)] & PDE_ADDRESS)
@@ -64,7 +88,11 @@ typedef uint32_t	*pte_t;		/* page table entry */
 #define ptetopg(pte, virt) \
             ((pte)[PAGE_TABLE(virt)] & PTE_ADDRESS)
 
-pgd_t	get_current_pgd(void);
+__BEGIN_DECLS
+pgd_t	mmu_get_current_pgd(void);
+void	mmu_tlb_index_update(void);
+int	mmu_replace_tlb_entry(vaddr_t, paddr_t, pte_t);
+__END_DECLS
 
 #elif
 
@@ -105,6 +133,6 @@ typedef struct pte	*pte_t;		/* page table entry */
 #define vtopte(pgd, virt)
 
 #define ptetopg(pte, virt)
-#endif /* !CONFIG_PPC_BOOKE */
 
+#endif /* !CONFIG_PPC_BOOKE */
 #endif /* !_PPC_MMU_H */

@@ -42,6 +42,7 @@
 #include <locore.h>
 
 #if defined(CONFIG_MMU)
+#include <mmu.h>
 #include <vm.h>
 #endif
 
@@ -101,7 +102,7 @@ static const int exception_map[] = {
 void handle_tlb_miss(struct cpu_regs *regs)
 {
 	uint32_t esr, dear;
-	pgd_t pgd = get_current_pgd();
+	pgd_t pgd = mmu_get_current_pgd();
 
 	DPRINTF(("tlb miss (%s)\n", curtask->name));
 
@@ -113,16 +114,23 @@ void handle_tlb_miss(struct cpu_regs *regs)
 	       regs->srr1, esr));
 
 	/* 
-	 * Search on current page table
+	 * Search on current page global directory
 	 */
-	if (pgd[PAGE_DIR(dear)] & PDE_PRESENT)
-		if (pgd[PAGE_TABLE(dear) & PDE_PRESENT]) {
+	if (pte_present(pgd, dear)) {
+
+		/* get page table entry for given fault address */
+		pte_t pte = vtopte(pgd, dear);
+
+		if (page_present(pte, dear)) {
+
 			DPRINTF(("Access Granted, Replace a TLB entry\n"));
+			mmu_replace_tlb_entry(dear,
+			                      (paddr_t)ptetopg(pte, dear),
+					      pte);
 			return;
 		}
-
-	DPRINTF(("Access denied\n"));
-	for (;;) ;
+	}
+	panic("Access denied\n");
 }
 #endif
 
@@ -138,7 +146,6 @@ trap_handler(struct cpu_regs *regs)
 #ifdef CONFIG_MMU
 	switch (trap_no) {
 	case TRAP_DATA_TLB_MISS:
-		trap_dump(regs);
 		handle_tlb_miss(regs);
 		return;
 	};

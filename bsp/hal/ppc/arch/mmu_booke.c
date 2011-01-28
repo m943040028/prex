@@ -46,6 +46,127 @@
 static pgd_t boot_pgd = (pgd_t)BOOT_PGD;
 static pgd_t current_pgd;
 
+/* TLB entry index */
+static uint8_t tlb_entry_index;
+#define CONFIG_NTLB_ENTS	64
+
+typedef struct tlb_entry_s {
+	uint8_t	tlb_locked : 1;
+	uint8_t tlb_cachable : 1;
+	uint8_t tlb_write_through : 1;
+	uint8_t tlb_writable : 1;
+	uint8_t tlb_executable : 1;
+	uint8_t tlb_pagesize;
+	paddr_t	phys_addrs;
+	vaddr_t virt_addrs;
+} tlb_entry_t;
+static tlb_entry_t tlb_entries[CONFIG_NTLB_ENTS];
+
+void __inline
+_mmu_init_tlb_entry(tlb_entry_t *e, uint8_t page_size, int cachable)
+{
+
+	e->tlb_cachable = cachable;
+	e->tlb_write_through = 0;
+	e->tlb_pagesize = page_size;
+}
+
+void __inline
+mmu_init_tlb_entry(tlb_entry_t *e, uint8_t page_size)
+{
+	_mmu_init_tlb_entry(e, page_size, 1);
+}
+
+void __inline
+mmu_init_tlb_entry_rw(tlb_entry_t *e, uint8_t page_size)
+{
+
+	e->tlb_writable = 1;
+	_mmu_init_tlb_entry(e, page_size, 1);
+}
+
+void __inline
+mmu_init_tlb_entry_exec(tlb_entry_t *e, uint8_t page_size)
+{
+
+	e->tlb_executable = 1;
+	mmu_init_tlb_entry_rw(e, page_size);
+}
+
+void __inline
+mmu_init_tlb_entry_io(tlb_entry_t *e, uint8_t page_size)
+{
+
+	_mmu_init_tlb_entry(e, page_size, 0);
+}
+
+/*
+ * Called via every timer ticks, used to randomly choose a
+ * victim TLB entry.
+ */
+void __inline
+mmu_tlb_index_update(void)
+{
+
+	tlb_entry_index++;
+	if (tlb_entry_index == CONFIG_NTLB_ENTS)
+		tlb_entry_index = 0;
+}
+
+uint8_t
+mmu_find_first_usable_tlb_entry(void)
+{
+
+	uint8_t first = tlb_entry_index;
+	while (tlb_locked(&tlb_entries[tlb_entry_index]))
+	{
+		mmu_tlb_index_update();
+		if (first == tlb_entry_index)
+			panic("No free TLB entry is avaiable\n");
+	}
+
+	return tlb_entry_index;
+}
+
+void
+mmu_update_tlb_entry(tlb_entry_t *e)
+{
+	write_tlb_entry(e-tlb_entries,
+			e->phys_addrs |
+			(e->tlb_writable ? TLB_WR : 0),
+			e->virt_addrs | TLB_VALID |
+			TLB_PAGESZ(e->tlb_pagesize));
+}
+
+int
+mmu_replace_tlb_entry(vaddr_t va, paddr_t pa, pte_t pte)
+{
+
+	uint8_t index = mmu_find_first_usable_tlb_entry();
+	tlb_entry_t *e = &tlb_entries[index];
+
+	/* TODO: Handle more than 4k pages */
+	if (page_executable(pte, va))
+		mmu_init_tlb_entry_exec(e, PAGESZ_4K);
+	else if (page_writable(pte, va))
+		mmu_init_tlb_entry_rw(e, PAGESZ_4K);
+	else if (page_io(pte, va))
+		mmu_init_tlb_entry_io(e, PAGESZ_4K);
+	else
+		panic("Unknow page table entry field\n");
+
+	e->virt_addrs = (va & TLB_EPN_MASK);
+	e->phys_addrs = (pa & TLB_RPN_MASK);
+	DPRINTF(("TLB %d, %08x -> %08x, %c%c%c\n",
+		index, e->virt_addrs, e->phys_addrs,
+		e->tlb_writable ? 'w':'-',
+		e->tlb_executable ? 'x' : '-',
+		e->tlb_cachable ? 'c' : '-'
+		));
+	
+	mmu_update_tlb_entry(e);
+	return 0;
+}
 
 /*
  * Map physical memory range into virtual address
@@ -102,7 +223,7 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE);
 		break;
 	case PG_IOMEM:
-		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE | PTE_NCACHE);
+		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE | PTE_IO);
 		break;
 	default:
 		panic("mmu_map");
@@ -199,7 +320,8 @@ mmu_switch(pgd_t pgd)
 /*
  * Get Current Working PGD
  */
-pgd_t get_current_pgd(void)
+pgd_t
+mmu_get_current_pgd(void)
 {
 	return current_pgd;
 }
@@ -271,6 +393,13 @@ mmu_init(struct mmumap *mmumap_table)
 			    (size_t)map->size, map_type))
 			panic("mmu_init");
 	}
+
+	/* 
+	 * Reserve TLB63 for kernel flat mapping
+	 *  (which is set via locore_44x.S)
+	 */
+	mmu_init_tlb_entry_rw(&tlb_entries[63], PAGESZ_16M);
+	tlb_lock(&tlb_entries[63]);
 }
 
 /*
@@ -286,4 +415,5 @@ mmu_premap(paddr_t phys, vaddr_t virt)
 	   setup for mmaped I/O space */
 	write_tlb_entry(0, phys | TLB_WR,
 			virt | TLB_VALID | TLB_PAGESZ(PAGESZ_4K));
+	tlb_lock(&tlb_entries[0]);
 }

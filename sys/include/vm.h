@@ -67,7 +67,7 @@ struct seg {
  * VM mapping per one task.
  */
 struct vm_map {
-	struct seg	head;		/* list head of segements */
+	struct seg	head;		/* list head of segments */
 	int		refcnt;		/* reference count */
 	pgd_t		pgd;		/* page directory */
 	size_t		total;		/* total used size */

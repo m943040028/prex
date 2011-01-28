@@ -101,23 +101,27 @@ static const int exception_map[] = {
 void handle_tlb_miss(struct cpu_regs *regs)
 {
 	uint32_t esr, dear;
-	vm_map_t curmap;
+	pgd_t pgd = get_current_pgd();
 
-	printf("tlb miss (%s)\n", curtask->name);
+	DPRINTF(("tlb miss (%s)\n", curtask->name));
 
 	esr = mfspr(SPR_ESR);
 	dear = mfspr(SPR_DEAR);
-	printf("fault instruction address = %08x\n", regs->srr0);
-	printf("fault data access address = %08x\n", dear);
-	printf("fault MSR = %08x\n", regs->srr1);
-	printf("ESR = %08x\n", esr);
+	DPRINTF(("fault instruction address = %08x\n", regs->srr0));
+	DPRINTF(("fault data access address = %08x\n", dear));
+	DPRINTF(("MSR = %08x, ESR = %08x\n",
+	       regs->srr1, esr));
 
-	curmap = curtask->map;
 	/* 
 	 * Search on current page table
 	 */
-	if (curmap->pgd[PAGE_DIR(dear)] & PTE_PRESENT)
-		printf("pte present\n");
+	if (pgd[PAGE_DIR(dear)] & PDE_PRESENT)
+		if (pgd[PAGE_TABLE(dear) & PDE_PRESENT]) {
+			DPRINTF(("Access Granted, Replace a TLB entry\n"));
+			return;
+		}
+
+	DPRINTF(("Access denied\n"));
 	for (;;) ;
 }
 #endif

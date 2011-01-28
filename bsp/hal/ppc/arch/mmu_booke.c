@@ -44,6 +44,7 @@
  * This works as a template for all page directory.
  */
 static pgd_t boot_pgd = (pgd_t)BOOT_PGD;
+static pgd_t current_pgd;
 
 
 /*
@@ -188,18 +189,19 @@ mmu_terminate(pgd_t pgd)
  * Switch to new page directory
  *
  * This is called when context is switched.
- * Whole TLB are flushed automatically by loading
- * CR3 register.
  */
 void
 mmu_switch(pgd_t pgd)
 {
-#if 0
-	uint32_t phys = (uint32_t)kvtop(pgd);
+	current_pgd = pgd;
+}
 
-	if (phys != get_cr3())
-		set_cr3(phys);
-#endif
+/*
+ * Get Current Working PGD
+ */
+pgd_t get_current_pgd(void)
+{
+	return current_pgd;
 }
 
 /*

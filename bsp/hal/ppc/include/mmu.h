@@ -64,6 +64,8 @@ typedef uint32_t	*pte_t;		/* page table entry */
 #define ptetopg(pte, virt) \
             ((pte)[PAGE_TABLE(virt)] & PTE_ADDRESS)
 
+pgd_t	get_current_pgd(void);
+
 #elif
 
 typedef uint32_t	*pgd_t;		/* page directory */

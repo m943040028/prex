@@ -35,6 +35,7 @@
 #include <machine/syspage.h>
 #include <kernel.h>
 #include <page.h>
+#include <kmem.h>
 #include <mmu.h>
 #include <cpu.h>
 #include <cpufunc.h>
@@ -133,7 +134,8 @@ mmu_update_tlb_entry(tlb_entry_t *e)
 {
 	write_tlb_entry(e-tlb_entries,
 			e->phys_addrs |
-			(e->tlb_writable ? TLB_WR : 0),
+			(tlb_writable(e) ? TLB_WR : 0) |
+			(tlb_executable(e) ? TLB_EX : 0),
 			e->virt_addrs | TLB_VALID |
 			TLB_PAGESZ(e->tlb_pagesize));
 }
@@ -153,8 +155,9 @@ mmu_replace_tlb_entry(vaddr_t va, paddr_t pa, pte_t pte)
 	else if (page_io(pte, va))
 		mmu_init_tlb_entry_io(e, PAGESZ_4K);
 	else
-		panic("Unknow page table entry field\n");
+		panic("Unknown page table entry field\n");
 
+	e->tlb_executable = 1;
 	e->virt_addrs = (va & TLB_EPN_MASK);
 	e->phys_addrs = (pa & TLB_RPN_MASK);
 	DPRINTF(("TLB %d, %08x -> %08x, %c%c%c\n",
@@ -228,6 +231,7 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 	default:
 		panic("mmu_map");
 	}
+	DPRINTF(("%s: %08x -> %08x: %08x\n", __func__, va, pa, size));
 	/*
 	 * Map all pages
 	 */
@@ -237,6 +241,7 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 			pte = vtopte(pgd, va);
 		} else {
 			ASSERT(pte_flag != 0);
+			/* Page table does not exist, allocate one */
 			if ((pg = page_alloc(PAGE_SIZE)) == 0) {
 				DPRINTF(("Error: MMU mapping failed\n"));
 				return ENOMEM;

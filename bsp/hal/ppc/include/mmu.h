@@ -39,7 +39,7 @@ typedef uint32_t	*pte_t;		/* page table entry */
 
 /* page directory entry */
 #define PDE_PRESENT	0x00000001
-#define PDE_ADDRESS	0xffc00000
+#define PDE_ADDRESS	0xfffff000
 
 /* page table entry */
 #define PTE_PRESENT	0x00000001
@@ -78,7 +78,7 @@ typedef uint32_t	*pte_t;		/* page table entry */
 #define tlb_lock(tlb) ((tlb)->tlb_locked = 1)
 #define tlb_unlock(tlb) ((tlb)->tlb_locked = 0)
 #define tlb_locked(tlb) ((tlb)->tlb_locked)
-#define tlb_writalbe(tlb) ((tlb)->tlb_writable)
+#define tlb_writable(tlb) ((tlb)->tlb_writable)
 #define tlb_cachable(tlb) ((tlb)->tlb_cachable)
 #define tlb_executable(tlb) ((tlb)->tlb_executable)
 

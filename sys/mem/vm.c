@@ -695,7 +695,6 @@ vm_load(vm_map_t map, struct module *mod, void **stack)
 	error = do_allocate(map, &text, mod->textsz, 0);
 	if (error)
 		return error;
-	printf("copy from %08x to %08x\n", src, text);
 	memcpy(text, src, mod->textsz);
 	error = do_attribute(map, text, PROT_READ);
 	if (error)

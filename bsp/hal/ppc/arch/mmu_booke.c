@@ -58,6 +58,7 @@ typedef struct tlb_entry_s {
 	uint8_t tlb_writable : 1;
 	uint8_t tlb_executable : 1;
 	uint8_t tlb_pagesize;
+	asid_t asid;
 	paddr_t	phys_addrs;
 	vaddr_t virt_addrs;
 } tlb_entry_t;
@@ -132,6 +133,8 @@ mmu_find_first_usable_tlb_entry(void)
 void
 mmu_update_tlb_entry(tlb_entry_t *e)
 {
+	/* task which this tlb entry belongs to */
+	mtspr(SPR_MMUCR, e->asid);
 	write_tlb_entry(e-tlb_entries,
 			e->phys_addrs |
 			(tlb_writable(e) ? TLB_WR : 0) |
@@ -160,8 +163,10 @@ mmu_replace_tlb_entry(vaddr_t va, paddr_t pa, pte_t pte)
 	e->tlb_executable = 1;
 	e->virt_addrs = (va & TLB_EPN_MASK);
 	e->phys_addrs = (pa & TLB_RPN_MASK);
-	DPRINTF(("TLB %d, %08x -> %08x, %c%c%c\n",
-		index, e->virt_addrs, e->phys_addrs,
+	e->asid = pgd_get_asid(mmu_get_current_pgd());
+
+	DPRINTF(("TLB %d(ASID %d), %08x -> %08x, %c%c%c\n",
+		index, e->asid, e->virt_addrs, e->phys_addrs,
 		e->tlb_writable ? 'w':'-',
 		e->tlb_executable ? 'x' : '-',
 		e->tlb_cachable ? 'c' : '-'
@@ -231,7 +236,8 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 	default:
 		panic("mmu_map");
 	}
-	DPRINTF(("%s: %08x -> %08x: %08x\n", __func__, va, pa, size));
+	DPRINTF(("%s: %08x -> %08x size %08x, type %08x\n",
+		__func__, va, pa, size, type));
 	/*
 	 * Map all pages
 	 */
@@ -246,7 +252,7 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 				DPRINTF(("Error: MMU mapping failed\n"));
 				return ENOMEM;
 			}
-			pgd[PAGE_DIR(va)] = (uint32_t)pg | pde_flag;
+			pgd_get_kv(pgd)[PAGE_DIR(va)] = (uint32_t)pg | pde_flag;
 			pte = (pte_t)ptokv(pg);
 			memset(pte, 0, PAGE_SIZE);
 		}
@@ -260,6 +266,14 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 	}
 	/*flush_tlb();*/
 	return 0;
+}
+
+asid_t
+mmu_allocate_asid(void)
+{
+
+	static asid_t asid = 0;
+	return asid++;
 }
 
 /*
@@ -286,6 +300,10 @@ mmu_newmap(void)
 	/* Copy kernel page tables */
 	i = PAGE_DIR(KERNBASE);
 	memcpy(&pgd[i], &boot_pgd[i], (size_t)(1024 - i));
+
+	/* Assign Address Space id for this new map */
+	pgd_set_asid(pgd, mmu_allocate_asid());
+
 	return pgd;
 }
 
@@ -302,13 +320,13 @@ mmu_terminate(pgd_t pgd)
 
 	/* Release all user page table */
 	for (i = 0; i < PAGE_DIR(KERNBASE); i++) {
-		pte = (pte_t)pgd[i];
+		pte = (pte_t)pgd_get_kv(pgd)[i];
 		if (pte != 0)
 			page_free((paddr_t)((paddr_t)pte & PTE_ADDRESS),
 				  PAGE_SIZE);
 	}
 	/* Release page directory */
-	page_free(kvtop(pgd), PAGE_SIZE);
+	page_free(kvtop(pgd_get_kv(pgd)), PAGE_SIZE);
 }
 
 /*

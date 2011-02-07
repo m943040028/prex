@@ -37,6 +37,11 @@
 typedef uint32_t	*pgd_t;		/* page directory */
 typedef uint32_t	*pte_t;		/* page table entry */
 
+typedef uint8_t		asid_t;		/* address space id */
+#define	pgd_get_asid(pgd) ((asid_t)((uint32_t)(pgd) & 0xff))
+#define	pgd_set_asid(pgd, asid) ((pgd) = (pgd_t)((uint32_t)(pgd)|(asid)))
+#define	pgd_get_kv(pgd)	((pgd_t)((uint32_t)(pgd) & ~0xff))
+
 /* page directory entry */
 #define PDE_PRESENT	0x00000001
 #define PDE_ADDRESS	0xfffff000
@@ -61,7 +66,7 @@ typedef uint32_t	*pte_t;		/* page table entry */
 /*
  * Page Directory Operator
  */
-#define pte_present(pgd, virt) (pgd[PAGE_DIR(virt)] & PDE_PRESENT)
+#define pte_present(pgd, virt) (pgd_get_kv(pgd)[PAGE_DIR(virt)] & PDE_PRESENT)
 
 /*
  * Page Table Entry Operator
@@ -83,7 +88,7 @@ typedef uint32_t	*pte_t;		/* page table entry */
 #define tlb_executable(tlb) ((tlb)->tlb_executable)
 
 #define vtopte(pgd, virt) \
-            (pte_t)ptokv((pgd)[PAGE_DIR(virt)] & PDE_ADDRESS)
+            (pte_t)ptokv(pgd_get_kv(pgd)[PAGE_DIR(virt)] & PDE_ADDRESS)
 
 #define ptetopg(pte, virt) \
             ((pte)[PAGE_TABLE(virt)] & PTE_ADDRESS)

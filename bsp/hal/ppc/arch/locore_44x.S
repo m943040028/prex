@@ -249,7 +249,8 @@ INTR_ENTRY(decrementer    ,TRAP_DECREMENTER)
 SYSC_ENTRY(syscall        ,TRAP_SYSTEM_CALL)
 TRAP_ENTRY(trace          ,TRAP_TRACE)
 TRAP_ENTRY(fp_assist      ,TRAP_FP_ASSIST)
-TRAP_ENTRY(data_tlb_miss ,TRAP_DATA_TLB_MISS)
+TRAP_ENTRY(data_tlb_miss  ,TRAP_DATA_TLB_MISS)
+TRAP_ENTRY(inst_tlb_miss  ,INST_DATA_TLB_MISS)
 
 .globl	exception_vector_end
 exception_vector_end:
@@ -325,6 +326,7 @@ ENTRY(kernel_start)
 	SET_IVOR(10, decrementer)
 	SET_IVOR(11, fp_assist)
 	SET_IVOR(13, data_tlb_miss)
+	SET_IVOR(14, inst_tlb_miss)
 
 	/* Establish the interrupt vector base */
 	lis     r4, exception_vector@h	/* IVPR only uses the high 16-bits */

@@ -124,7 +124,6 @@ void handle_tlb_miss(struct cpu_regs *regs)
 		if (page_present(pte, dear)) {
 
 			DPRINTF(("Access Granted, Replace a TLB entry\n"));
-			DPRINTF(("pte: %08x\n", pte));
 			mmu_replace_tlb_entry(dear,
 			                      (paddr_t)ptetopg(pte, dear),
 					      pte);

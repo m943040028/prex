@@ -481,6 +481,7 @@ task_bootstrap(void)
 
 	machine_bootinfo(&bi);
 	mod = &bi->tasks[0];
+	bi->nr_tasks = 1;
 
 	for (i = 0; i < bi->nr_tasks; i++) {
 		/*

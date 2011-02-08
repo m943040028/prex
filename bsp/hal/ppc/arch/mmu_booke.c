@@ -58,7 +58,6 @@ typedef struct tlb_entry_s {
 	uint8_t tlb_writable : 1;
 	uint8_t tlb_executable : 1;
 	uint8_t tlb_pagesize;
-	asid_t asid;
 	paddr_t	phys_addrs;
 	vaddr_t virt_addrs;
 } tlb_entry_t;
@@ -133,8 +132,6 @@ mmu_find_first_usable_tlb_entry(void)
 void
 mmu_update_tlb_entry(tlb_entry_t *e)
 {
-	/* task which this tlb entry belongs to */
-	mtspr(SPR_MMUCR, e->asid);
 	write_tlb_entry(e-tlb_entries,
 			e->phys_addrs |
 			(tlb_writable(e) ? TLB_WR : 0) |
@@ -149,6 +146,7 @@ mmu_replace_tlb_entry(vaddr_t va, paddr_t pa, pte_t pte)
 
 	uint8_t index = mmu_find_first_usable_tlb_entry();
 	tlb_entry_t *e = &tlb_entries[index];
+	asid_t asid;
 
 	/* TODO: Handle more than 4k pages */
 	if (page_executable(pte, va))
@@ -163,10 +161,10 @@ mmu_replace_tlb_entry(vaddr_t va, paddr_t pa, pte_t pte)
 	e->tlb_executable = 1;
 	e->virt_addrs = (va & TLB_EPN_MASK);
 	e->phys_addrs = (pa & TLB_RPN_MASK);
-	e->asid = pgd_get_asid(mmu_get_current_pgd());
+	asid = pgd_get_asid(mmu_get_current_pgd());
 
 	DPRINTF(("TLB %d(ASID %d), %08x -> %08x, %c%c%c\n",
-		index, e->asid, e->virt_addrs, e->phys_addrs,
+		index, asid, e->virt_addrs, e->phys_addrs,
 		e->tlb_writable ? 'w':'-',
 		e->tlb_executable ? 'x' : '-',
 		e->tlb_cachable ? 'c' : '-'
@@ -338,6 +336,9 @@ void
 mmu_switch(pgd_t pgd)
 {
 	current_pgd = pgd;
+
+	mtspr(SPR_PID, pgd_get_asid(pgd));
+	DPRINTF(("switch to asid %d\n", pgd_get_asid(pgd)));
 }
 
 /*

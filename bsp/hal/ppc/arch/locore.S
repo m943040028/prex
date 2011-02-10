@@ -219,7 +219,6 @@ INTR_ENTRY(0x900, decrementer    ,TRAP_DECREMENTER)
 SYSC_ENTRY(0xc00, syscall        ,TRAP_SYSTEM_CALL)
 TRAP_ENTRY(0xd00, trace          ,TRAP_TRACE)
 TRAP_ENTRY(0xe00, fp_assist      ,TRAP_FP_ASSIST)
-TRAP_ENTRY(0x1100, data_tlb_miss ,TRAP_DATA_TLB_MISS)
 
 .globl	exception_vector_end
 exception_vector_end:

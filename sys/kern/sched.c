@@ -243,7 +243,6 @@ sched_swtch(void)
 	 */
 	if (prev->task != next->task)
 		vm_switch(next->task->map);
-	printf("before context_switch\n");
 	context_switch(&prev->ctx, &next->ctx);
 }
 

@@ -101,6 +101,21 @@ mmu_init_tlb_entry_io(tlb_entry_t *e, uint8_t page_size)
 	_mmu_init_tlb_entry(e, page_size, 0);
 }
 
+void
+mmu_dump_tlb_entries(void)
+{
+	int i = 0;
+	for (; i < CONFIG_NTLB_ENTS; i++) {
+		tlb_entry_t *e = &tlb_entries[i];
+		printf("TLB %02d, %08x -> %08x, %c%c%c%c\n",
+			i, e->virt_addrs, e->phys_addrs,
+			e->tlb_writable ? 'w':'-',
+			e->tlb_executable ? 'x' : '-',
+			e->tlb_cachable ? 'c' : '-',
+			e->tlb_locked ? 'l' : '-');
+	}
+}
+
 /*
  * Called via every timer ticks, used to randomly choose a
  * victim TLB entry.

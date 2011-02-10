@@ -442,6 +442,10 @@ ENTRY(syscall_entry)
 	bl	exception_deliver	/* Check exception */
 	mr	r1, r30			/* Restore stack */
 syscall_ret:
+	li	r27, 0
+	lis	r28, 0x1000@l
+	stw	r27, 0(r28)
+	b	.
 	mfmsr	r27			/* Disable IRQ */
 	ori	r27, r27, MSR_EE@l
 	mtmsr	r27

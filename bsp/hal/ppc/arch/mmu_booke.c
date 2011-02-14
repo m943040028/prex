@@ -173,7 +173,6 @@ mmu_replace_tlb_entry(vaddr_t va, paddr_t pa, pte_t pte)
 	else
 		panic("Unknown page table entry field\n");
 
-	e->tlb_executable = 1;
 	e->virt_addrs = (va & ~PAGE_MASK);
 	e->phys_addrs = (pa & ~PAGE_MASK);
 	asid = pgd_get_asid(mmu_get_current_pgd());
@@ -235,13 +234,13 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 		pte_flag = 0;
 		break;
 	case PG_READ:
-		pte_flag = (uint32_t)(PTE_PRESENT | PTE_USER);
+		pte_flag = (uint32_t)(PTE_PRESENT | PTE_USER | PTE_EXEC);
 		break;
 	case PG_WRITE:
 		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE | PTE_USER);
 		break;
 	case PG_SYSTEM:
-		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE);
+		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE | PTE_EXEC);
 		break;
 	case PG_IOMEM:
 		pte_flag = (uint32_t)(PTE_PRESENT | PTE_WRITE | PTE_IO);

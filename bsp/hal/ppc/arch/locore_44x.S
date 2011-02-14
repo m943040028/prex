@@ -225,7 +225,6 @@ virt_##name:; \
 exception_##name: \
 	mtsprg1 r1;		/* sprg1: current sp */ \
 	mfsprg0	r1; 		/* Load kernel stack */ \
-	SAVE_ALL ; \
 	li	r10, id; \
 	ABS_JUMP(syscall_entry);
 
@@ -428,6 +427,7 @@ interrupt_ret:
  */
 	.global syscall_ret
 ENTRY(syscall_entry)
+	SAVE_ALL
  	stw	r10, CTX_TRAPNO(r1)
 
 #if defined(CONFIG_QEMU_WORKAROUND)

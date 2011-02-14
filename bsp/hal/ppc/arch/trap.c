@@ -68,9 +68,6 @@ static const char *const trap_name[] = {
 	"System call",			/*  c */
 	"Trace",			/*  d */
 	"Floating point assist",	/*  e */
-	"",				/*  f */
-	"",				/* 10 */
-	"Data TLB miss",		/* 11 */
 };
 #define MAXTRAP (sizeof(trap_name) / sizeof(void *) - 1)
 #endif	/* DEBUG */
@@ -142,10 +139,11 @@ void
 trap_handler(struct cpu_regs *regs)
 {
 	uint32_t trap_no = regs->trap_no;
-
+printf("trap_no=%d\n", trap_no);
 #ifdef CONFIG_MMU
 	switch (trap_no) {
 	case TRAP_DATA_TLB_MISS:
+	case TRAP_INST_TLB_MISS:
 		handle_tlb_miss(regs);
 		return;
 	};

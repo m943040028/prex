@@ -174,8 +174,8 @@ mmu_replace_tlb_entry(vaddr_t va, paddr_t pa, pte_t pte)
 		panic("Unknown page table entry field\n");
 
 	e->tlb_executable = 1;
-	e->virt_addrs = (va & TLB_EPN_MASK);
-	e->phys_addrs = (pa & TLB_RPN_MASK);
+	e->virt_addrs = (va & ~PAGE_MASK);
+	e->phys_addrs = (pa & ~PAGE_MASK);
 	asid = pgd_get_asid(mmu_get_current_pgd());
 
 	DPRINTF(("TLB %d(ASID %d), %08x -> %08x, %c%c%c\n",

@@ -51,7 +51,7 @@
 #define TRAP_FP_ASSIST		14
 
 #define TRAP_DATA_TLB_MISS	33
-#define INST_DATA_TLB_MISS	34
+#define TRAP_INST_TLB_MISS	34
 
 
 #ifndef __ASSEMBLY__

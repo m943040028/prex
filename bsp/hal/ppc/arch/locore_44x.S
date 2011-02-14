@@ -180,6 +180,13 @@
 	lwz	r30, REG_R30(r1); \
 	lwz	r31, REG_R31(r1);
 
+
+#if defined(CONFIG_QEMU_WORKAROUND)
+#define GET_MSR mfspr	r1, 0x116
+#else
+#define GET_MSR	mfsrr1	r1
+#endif
+
 /*
  * Macro to build an exception entry.
  * We assume interrupts are disabled.
@@ -192,7 +199,7 @@ virt_##name:; \
 	mtsprg1 r1;		/* sprg1: current sp */ \
 	mtsprg3	r10; 		/* sprg3: saved r10 */ \
 	mfcr	r10; 		/* r10:	saved cr */ \
-	mfsrr1	r1; 		/* Get msr */ \
+	GET_MSR; \
 	mtcr	r1; \
 	bt	17, 1f;		/* Exception from user mode? */ \
 	mfsprg1	r1; 		/* Kernel mode => restore orignal sp */ \
@@ -250,7 +257,7 @@ SYSC_ENTRY(syscall        ,TRAP_SYSTEM_CALL)
 TRAP_ENTRY(trace          ,TRAP_TRACE)
 TRAP_ENTRY(fp_assist      ,TRAP_FP_ASSIST)
 TRAP_ENTRY(data_tlb_miss  ,TRAP_DATA_TLB_MISS)
-TRAP_ENTRY(inst_tlb_miss  ,INST_DATA_TLB_MISS)
+TRAP_ENTRY(inst_tlb_miss  ,TRAP_INST_TLB_MISS)
 
 .globl	exception_vector_end
 exception_vector_end:
@@ -406,7 +413,7 @@ ENTRY(interrupt_common)
 	bf	17, interrupt_ret	/* Exit if it's from kernel mode */
 
 	mfmsr	r27			/* Enable IRQ */
-	andi.	r4, r27, ~MSR_EE@l
+	ori	r4, r27, MSR_EE@l
 	mtmsr	r4
 	bl	exception_deliver	/* Check exception */
 	mtmsr	r27			/* Disable IRQ */
@@ -423,12 +430,24 @@ interrupt_ret:
 ENTRY(syscall_entry)
  	stw	r10, CTX_TRAPNO(r1)
 
+#if defined(CONFIG_QEMU_WORKAROUND)
+	mfspr	r10, 0x116
+	/*addi	r10, r10, 4	*/	/* return address should be srr0 + 4 */
+	stw	r10, REG_SRR1(r1)
+	mfspr	r10, 0x117
+	stw	r10, REG_SRR0(r1)
+#else
+	mfsrr0	r10
+	addi	r10, r10, 4
+	stw	r10, REG_SRR0(r1)
+#endif
+
 	mfmsr	r29			/* r29: current msr value */
 	mr	r30, r1			/* r30: trap frame */
 	subi	r1, r1, STKFRAME_LEN	/* Adjust stack frame for C routine */
 
 	mfmsr	r27			/* Enable IRQ */
-	andi.	r27, r27, ~MSR_EE@l
+	ori	r27, r27, MSR_EE@l
 	mtmsr	r27
 
 	mr	r26, r0			/* r26: saved syscall number */
@@ -437,17 +456,13 @@ ENTRY(syscall_entry)
 
 	cmpwi	cr0, r26, 0		/* exception_return? */
 	beq	1f			/* Skip storing error if so */
- 	stw	r3, REG_R3(30)		/* Set return value */
+ 	stw	r3, REG_R3(r30)		/* Set return value */
 1:
 	bl	exception_deliver	/* Check exception */
 	mr	r1, r30			/* Restore stack */
 syscall_ret:
-	li	r27, 0
-	lis	r28, 0x1000@l
-	stw	r27, 0(r28)
-	b	.
 	mfmsr	r27			/* Disable IRQ */
-	ori	r27, r27, MSR_EE@l
+	andi.	r27, r27, ~MSR_EE@l
 	mtmsr	r27
 	RESTORE_ALL
 	mfsprg1	r1			/* Restore original sp */

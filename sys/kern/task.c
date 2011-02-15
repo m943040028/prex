@@ -511,8 +511,7 @@ task_bootstrap(void)
 			break;
 		t->priority = PRI_REALTIME;
 		t->basepri = PRI_REALTIME;
-		if (i == 0 || i == 4)
-			thread_resume(t);
+		thread_resume(t);
 
 		mod++;
 	}

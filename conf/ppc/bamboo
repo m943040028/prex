@@ -13,7 +13,7 @@ makeoptions	ASFLAGS+= -mregnames -m405
 # Memory address
 #
 memory		LOADER_TEXT	0x00000000	# Start of boot loader
-memory		KERNEL_TEXT	0x80080000	# Start of kernel
+memory		KERNEL_TEXT	0x80100000	# Start of kernel
 memory		BOOTIMG_BASE	0x80008000	# Location of boot image
 memory		SYSPAGE_BASE	0x80000000	# Location of system page
 
@@ -35,8 +35,8 @@ options 	MMU		# Memory management unit
 options 	CACHE		# Cache memory
 options		NTLB_ENTS=64	# How many TLB entries
 #options 	FPU		# Floating point unit
-options 	ROMBOOT		# Boot from ROM
-#options 	BOOTDISK	# Disk for /boot directory
+#options 	ROMBOOT		# Boot from ROM
+options 	BOOTDISK	# Disk for /boot directory
 options		NUICS=1		# How Many Universal Interrupt Controller We have
 options		QEMU_WORKAROUND
 

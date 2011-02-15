@@ -265,9 +265,9 @@ copy_file(char *src, char *dest)
 int
 main(int argc, char *argv[])
 {
-	object_t execobj, /*procobj,*/ fsobj;
-	/*struct bind_msg bm;*/
-	/*struct msg m;*/
+	object_t execobj, procobj, fsobj;
+	struct bind_msg bm;
+	struct msg m;
 
 	sys_log("Starting bootstrap server\n");
 
@@ -277,25 +277,22 @@ main(int argc, char *argv[])
 	 * Wait until all required system servers
 	 * become available.
 	 */
-	/*wait_server("!proc", &procobj);*/
+	wait_server("!proc", &procobj);
 	wait_server("!fs", &fsobj);
-	/*wait_server("!exec", &execobj);*/
+	wait_server("!exec", &execobj);
 
 	/*
 	 * Send boot message to all servers.
 	 * This is required to synchronize the server
 	 * initialization without deadlock.
 	 */
-#if 0
 	send_bootmsg(execobj);
 	send_bootmsg(procobj);
-#endif
 	send_bootmsg(fsobj);
 
 	/*
 	 * Request to bind a new capabilities for us.
 	 */
-#if 0
 	bm.hdr.code = EXEC_BINDCAP;
 	strlcpy(bm.path, "/boot/boot", sizeof(bm.path));
 	msg_send(execobj, &bm, sizeof(bm));
@@ -306,7 +303,6 @@ main(int argc, char *argv[])
 	 */
 	m.hdr.code = PS_SETINIT;
 	msg_send(procobj, &m, sizeof(m));
-#endif
 
 	/*
 	 * Initialize a library for file I/O.

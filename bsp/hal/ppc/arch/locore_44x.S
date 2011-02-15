@@ -365,25 +365,7 @@ ENTRY(interrupt_common)
 	mfspr	r2, 0x117
 	stw	r2, REG_SRR0(r1)
 #endif
-#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
-	addis	r2, 0, 0xdeaddead@ha
-	addi	r2, r2, 0xdeaddead@l
-	stw	r2, START_FRAME(r1)
-	addis	r2, 0, 0xbeafbeaf@ha
-	addi	r2, r2, 0xbeafbeaf@l
-	stw	r2, END_FRAME(r1)
-#endif
 	stw	r10, CTX_TRAPNO(r1)
-#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
-#if 0
-	mr	r30, r1			/* r30: trap frame */
-	subi	r1, r1, STKFRAME_LEN	/* Adjust stack frame for C routine */
-	mr	r3, r30
-	bl	trap_unit_test
-	bl	clock_isr
-	b	interrupt_ret
-#endif
-#endif
 
 	mfsprg2	r28			/* r28: current IRQ nesting level */
 	addi	r3, r28, 1		/* Increment IRQ nesting level */
@@ -401,9 +383,7 @@ ENTRY(interrupt_common)
 	mr	r3, r30
 	bl	interrupt_handler	/* Call main interrupt handler */
 
-	mfsprg2	r28
-	subi	r28, r28, 1
-	mtsprg2	r28			/* Decrement IRQ nesting level */
+	mtsprg2	r28			/* Restore IRQ nesting level */
 	cmpwi	cr0, r28, 0		/* Outermost interrupt? */
 	bne	interrupt_ret
 	bl	sched_unlock		/* Try to preempt */
@@ -479,24 +459,8 @@ ENTRY(trap_common)
 	mfspr	r2, 0x117
 	stw	r2, REG_SRR0(r1)
 #endif
-#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
-	addis	r2, 0, 0xdeaddead@ha
-	addi	r2, r2, 0xdeaddead@l
-	stw	r2, START_FRAME(r1)
-	addis	r2, 0, 0xbeafbeaf@ha
-	addi	r2, r2, 0xbeafbeaf@l
-	stw	r2, END_FRAME(r1)
-#endif
 	stw	r10, CTX_TRAPNO(r1)
-#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
-#if 0
-	mr	r3, r1
-	subi	r1, r1, STKFRAME_LEN	/* Adjust stack frame for C routine */
-	bl	trap_unit_test
-	addi	r1, r1, STKFRAME_LEN
-	b	trap_ret
-#endif
-#endif
+
 	mfsprg2	r3			/* increment nest counter */
 	addi	r3, r3, 1
 	mtsprg2	r3

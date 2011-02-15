@@ -101,14 +101,8 @@ void handle_tlb_miss(struct cpu_regs *regs)
 	uint32_t esr, dear;
 	pgd_t pgd = mmu_get_current_pgd();
 
-	DPRINTF(("tlb miss (%s)\n", curtask->name));
-
 	esr = mfspr(SPR_ESR);
 	dear = mfspr(SPR_DEAR);
-	DPRINTF(("fault instruction address = %08x\n", regs->srr0));
-	DPRINTF(("fault data access address = %08x\n", dear));
-	DPRINTF(("MSR = %08x, ESR = %08x\n",
-	       regs->srr1, esr));
 
 	/* 
 	 * Search on current page global directory
@@ -119,10 +113,8 @@ void handle_tlb_miss(struct cpu_regs *regs)
 		pte_t pte = vtopte(pgd, dear);
 
 		if (page_present(pte, dear)) {
-
-			DPRINTF(("Access Granted, Replace a TLB entry\n"));
 			mmu_replace_tlb_entry(dear,
-			                      (paddr_t)ptetopg(pte, dear),
+					      (paddr_t)ptetopg(pte, dear),
 					      pte);
 			return;
 		}
@@ -139,7 +131,7 @@ void
 trap_handler(struct cpu_regs *regs)
 {
 	uint32_t trap_no = regs->trap_no;
-printf("trap_no=%d\n", trap_no);
+
 #ifdef CONFIG_MMU
 	switch (trap_no) {
 	case TRAP_DATA_TLB_MISS:
@@ -148,7 +140,6 @@ printf("trap_no=%d\n", trap_no);
 		return;
 	};
 #endif
-#if 1
 #ifdef DEBUG
 	printf("============================\n");
 	printf("Trap %x: %s\n", trap_no, trap_name[trap_no]);
@@ -168,33 +159,12 @@ printf("trap_no=%d\n", trap_no);
 	}
 	for (;;) ;
 #endif
-#endif
 	if ((regs->srr1 & MSR_PR) != MSR_PR)
 		panic("Kernel exception");
 
 	exception_mark(exception_map[trap_no]);
 	exception_deliver();
 }
-
-#ifdef CONFIG_DEBUG_CONTEXT_SWITCH
-void
-trap_unit_test(struct cpu_regs *r)
-{
-	static int count = 5;
-
-	printf("trap_no: %d, count: %d\n", r->trap_no, count);
-	trap_dump(r);
-/*
-	while (count > 0) {
-		count--;
-		__asm__("sc");
-	}
-
-	printf("\n\nreturn from trap:, count: %d\n", count);
-	trap_dump(r);
-*/
-}
-#endif
 
 #ifdef DEBUG
 void delay(int loop) {
@@ -226,4 +196,7 @@ trap_dump(struct cpu_regs *r)
 
 	printf(" >> task=%s\n", curtask->name);
 }
+#else
+void
+trap_dump(struct cpu_regs *r) {}
 #endif /* !DEBUG */

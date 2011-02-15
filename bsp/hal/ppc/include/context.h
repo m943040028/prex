@@ -42,9 +42,6 @@
  * dependent on this register format.
  */
 struct cpu_regs {
-#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
-	uint32_t start_magic;
-#endif
 	uint32_t	gr[32];		/* R0-R31 */
 	uint32_t	lr;
 	uint32_t	cr;
@@ -53,9 +50,6 @@ struct cpu_regs {
 	uint32_t	srr0;
 	uint32_t	srr1;
 	uint32_t	trap_no;	/* trap number */
-#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
-	uint32_t end_magic;
-#endif
 };
 
 /*
@@ -83,54 +77,46 @@ typedef struct context *context_t;	/* context id */
 
 #endif /* !__ASSEMBLY__ */
 
-#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
-#define CONTEXT_BASE	4
-#define CTXREGS		(4*41)
-#define START_FRAME	(4*0)
-#define END_FRAME	(4*40)
-#else
-#define CONTEXT_BASE	0
-#define CTXREGS		(4*39)
-#endif
+#define REG_R0		0x00
+#define REG_R1		0x04
+#define REG_R2		0x08
+#define REG_R3		0x0c
+#define REG_R4		0x10
+#define REG_R5		0x14
+#define REG_R6		0x18
+#define REG_R7		0x1c
+#define REG_R8		0x20
+#define REG_R9		0x24
+#define REG_R10		0x28
+#define REG_R11		0x2c
+#define REG_R12		0x30
+#define REG_R13		0x34
+#define REG_R14		0x38
+#define REG_R15		0x3c
+#define REG_R16		0x40
+#define REG_R17		0x44
+#define REG_R18		0x48
+#define REG_R19		0x4c
+#define REG_R20		0x50
+#define REG_R21		0x54
+#define REG_R22		0x58
+#define REG_R23		0x5c
+#define REG_R24		0x60
+#define REG_R25		0x64
+#define REG_R26		0x68
+#define REG_R27		0x6c
+#define REG_R28		0x70
+#define REG_R29		0x74
+#define REG_R30		0x78
+#define REG_R31		0x7c
+#define REG_LR		0x80
+#define REG_CR		0x84
+#define REG_XER		0x88
+#define REG_CTR		0x8c
+#define REG_SRR0	0x90
+#define REG_SRR1	0x94
+#define CTX_TRAPNO	0x98
 
-#define REG_R0		((CONTEXT_BASE) + 0x00)
-#define REG_R1		((CONTEXT_BASE) + 0x04)
-#define REG_R2		((CONTEXT_BASE) + 0x08)
-#define REG_R3		((CONTEXT_BASE) + 0x0c)
-#define REG_R4		((CONTEXT_BASE) + 0x10)
-#define REG_R5		((CONTEXT_BASE) + 0x14)
-#define REG_R6		((CONTEXT_BASE) + 0x18)
-#define REG_R7		((CONTEXT_BASE) + 0x1c)
-#define REG_R8		((CONTEXT_BASE) + 0x20)
-#define REG_R9		((CONTEXT_BASE) + 0x24)
-#define REG_R10		((CONTEXT_BASE) + 0x28)
-#define REG_R11		((CONTEXT_BASE) + 0x2c)
-#define REG_R12		((CONTEXT_BASE) + 0x30)
-#define REG_R13		((CONTEXT_BASE) + 0x34)
-#define REG_R14		((CONTEXT_BASE) + 0x38)
-#define REG_R15		((CONTEXT_BASE) + 0x3c)
-#define REG_R16		((CONTEXT_BASE) + 0x40)
-#define REG_R17		((CONTEXT_BASE) + 0x44)
-#define REG_R18		((CONTEXT_BASE) + 0x48)
-#define REG_R19		((CONTEXT_BASE) + 0x4c)
-#define REG_R20		((CONTEXT_BASE) + 0x50)
-#define REG_R21		((CONTEXT_BASE) + 0x54)
-#define REG_R22		((CONTEXT_BASE) + 0x58)
-#define REG_R23		((CONTEXT_BASE) + 0x5c)
-#define REG_R24		((CONTEXT_BASE) + 0x60)
-#define REG_R25		((CONTEXT_BASE) + 0x64)
-#define REG_R26		((CONTEXT_BASE) + 0x68)
-#define REG_R27		((CONTEXT_BASE) + 0x6c)
-#define REG_R28		((CONTEXT_BASE) + 0x70)
-#define REG_R29		((CONTEXT_BASE) + 0x74)
-#define REG_R30		((CONTEXT_BASE) + 0x78)
-#define REG_R31		((CONTEXT_BASE) + 0x7c)
-#define REG_LR		((CONTEXT_BASE) + 0x80)
-#define REG_CR		((CONTEXT_BASE) + 0x84)
-#define REG_XER		((CONTEXT_BASE) + 0x88)
-#define REG_CTR		((CONTEXT_BASE) + 0x8c)
-#define REG_SRR0	((CONTEXT_BASE) + 0x90)
-#define REG_SRR1	((CONTEXT_BASE) + 0x94)
-#define CTX_TRAPNO	((CONTEXT_BASE) + 0x98)
+#define CTXREGS		(4*39)
 
 #endif /* !_PPC_CONTEXT_H */

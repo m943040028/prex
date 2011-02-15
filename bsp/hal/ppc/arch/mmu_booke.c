@@ -177,13 +177,6 @@ mmu_replace_tlb_entry(vaddr_t va, paddr_t pa, pte_t pte)
 	e->phys_addrs = (pa & ~PAGE_MASK);
 	asid = pgd_get_asid(mmu_get_current_pgd());
 
-	DPRINTF(("TLB %d(ASID %d), %08x -> %08x, %c%c%c\n",
-		index, asid, e->virt_addrs, e->phys_addrs,
-		e->tlb_writable ? 'w':'-',
-		e->tlb_executable ? 'x' : '-',
-		e->tlb_cachable ? 'c' : '-'
-		));
-	
 	mmu_update_tlb_entry(e);
 	return 0;
 }
@@ -248,8 +241,7 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 	default:
 		panic("mmu_map");
 	}
-	DPRINTF(("%s: %08x -> %08x size %08x, type %08x\n",
-		__func__, va, pa, size, type));
+
 	/*
 	 * Map all pages
 	 */
@@ -352,7 +344,6 @@ mmu_switch(pgd_t pgd)
 	current_pgd = pgd;
 
 	mtspr(SPR_PID, pgd_get_asid(pgd));
-	DPRINTF(("switch to asid %d\n", pgd_get_asid(pgd)));
 }
 
 /*

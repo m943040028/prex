@@ -39,7 +39,6 @@ options 	ROMBOOT		# Boot from ROM
 #options 	BOOTDISK	# Disk for /boot directory
 options		NUICS=1		# How Many Universal Interrupt Controller We have
 options		QEMU_WORKAROUND
-options		DEBUG_CONTEXT_SWITCH
 
 #
 # General setup

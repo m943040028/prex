@@ -847,16 +847,14 @@ fs_ftruncate(struct task *t, struct msg *msg)
 static int
 fs_boot(struct task *t, struct msg *msg)
 {
-#if 0
 	object_t execobj, procobj;
 	struct bind_msg bm;
 	struct msg m;
-#endif
 
 	/* Check client's capability. */
 	if (task_chkcap(msg->hdr.task, CAP_PROTSERV) != 0)
 		return EPERM;
-#if 0
+
 	/*
 	 * Request exec server to bind an appropriate
 	 * capability for us.
@@ -874,7 +872,6 @@ fs_boot(struct task *t, struct msg *msg)
 		sys_panic("fs: no proc found");
 	m.hdr.code = PS_REGISTER;
 	msg_send(procobj, &m, sizeof(m));
-#endif
 
 	return 0;
 }

@@ -1,6 +1,7 @@
 *.o
 *.elf
 *.rt
+*.dep
 bsp/boot/bootldr
 bsp/drv/drv.ko
 conf/captab.h

@@ -115,14 +115,14 @@ endif
 .PHONY: depend dep
 depend dep:
 ifdef SUBDIR
-	@(for d in $(SUBDIR) _ ; do \
+	@(for d in $(filter-out lib, $(SUBDIR)) _ ; do \
 	  if [ "$$d" != "_" ]; then $(MAKE) -C $$d depend; fi; \
 	done);
 endif
 	$(RM) Makefile.dep
 	@(for d in $(SRCS) _ ; do \
 	  if [ "$$d" != "_" ]; then \
-	  $(CPP) -M $(CPPFLAGS) $$d >> Makefile.dep; fi; \
+	  $(subst @,,$(CPP)) -M $(CPPFLAGS) $$d >> Makefile.dep; fi; \
 	done);
 
 #

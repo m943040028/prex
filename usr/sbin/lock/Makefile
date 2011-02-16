@@ -1,6 +1,6 @@
 PROG:=		lock
 
-SRCS:=		lock
+SRCS:=		lock.c
 
 #DISASM= 	lock.lst
 #MAP=		lock.map

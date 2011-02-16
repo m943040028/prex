@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009, Kohsuke Ohtani
+ * Copyright (c) 2011, Sheng-Yu Chiu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

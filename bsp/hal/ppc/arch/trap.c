@@ -105,6 +105,7 @@ void handle_tlb_miss(struct cpu_regs *regs)
 	esr = mfspr(SPR_ESR);
 	dear = mfspr(SPR_DEAR);
 
+	DPRINTF(("srr0=%08x, dear=%08x\n",regs->srr0, dear));
 	/* 
 	 * Search on current page global directory
 	 */

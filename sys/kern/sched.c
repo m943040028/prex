@@ -536,7 +536,6 @@ sched_unlock(void)
 	ASSERT(curthread->locks > 0);
 
 	s = splhigh();
-	/*printf("%s:level=%d\n", __func__, s);*/
 	if (curthread->locks == 1) {
 		wakeq_flush();
 		while (curthread->resched) {

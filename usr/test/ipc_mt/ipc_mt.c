@@ -82,6 +82,8 @@ receive_thread(void)
 	 * Find objects.
 	 */
 	error = object_lookup("test-A", &obj);
+	if (error)
+		panic("failed to get object");
 
 	for (;;) {
 		/*
@@ -128,6 +130,7 @@ main(int argc, char *argv[])
 	}
 	printf("ok?\n");
 	thread_setpri(thread_self(), 241);
+
 	for (;;)
 		thread_yield();
 	return 0;

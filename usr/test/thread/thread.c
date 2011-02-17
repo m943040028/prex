@@ -79,7 +79,7 @@ main(int argc, char *argv[])
 	t = thread_run(test_thread, stack+1024);
 
 	/*
-	 * Wait 1 sec
+	 * Wait 3 sec
 	 */
 	timer_sleep(3000, 0);
 

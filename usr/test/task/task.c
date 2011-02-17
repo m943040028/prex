@@ -35,7 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NR_THREADS 16
+#define NR_THREADS 8
 
 static char stack[NR_THREADS][1024];
 

@@ -272,6 +272,17 @@ kmem_free(void *ptr)
 	struct page_hdr *pg;
 
 	ASSERT(ptr != NULL);
+	{
+		u_long i = (u_long)ptr - BLKHDR_SIZE;
+		printf("free: %08x\n", ptr);
+		printf("Contrain:\n");
+		for (; i < (u_long)ptr - BLKHDR_SIZE + 40; i+=4) {
+			printf("%08x ", *(uint32_t *)i);
+			if ((i % 16) == 0)
+				printf("\n");
+		}
+		printf("\n");
+	}
 
 	/* Lock scheduler */
 	sched_lock();

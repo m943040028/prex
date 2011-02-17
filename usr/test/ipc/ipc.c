@@ -34,8 +34,14 @@
 #include <sys/prex.h>
 #include <ipc/ipc.h>
 #include <stdio.h>
+#include <string.h>
 
 static char stack[1024];
+
+struct my_msg {
+	struct msg_header hdr;
+	char data[100];
+};
 
 /*
  * Run specified thread
@@ -67,9 +73,10 @@ thread_run(void (*start)(void), void *stack)
 static void
 send_thread(void)
 {
-	struct msg msg;
+	struct my_msg msg;
 	object_t o1, o2;
 	int error;
+	char string[] = "A lazy dog laying on the road!!";
 
 	printf("Send thread is starting...\n");
 
@@ -99,6 +106,8 @@ send_thread(void)
 	 * Send message to object B.
 	 */
 	printf("Send message to object B.\n");
+	strncpy(msg.data, string, sizeof(string));
+	msg.hdr.code = 42;
 	msg_send(o2, &msg, sizeof(msg));
 
 	printf("Send completed.\n");
@@ -109,7 +118,7 @@ int
 main(int argc, char *argv[])
 {
 	object_t o1, o2, o3;
-	struct msg msg;
+	struct my_msg msg;
 	int error;
 
 	printf("IPC test program\n");
@@ -168,6 +177,8 @@ main(int argc, char *argv[])
 		printf("Receive ok!\n");
 		msg_reply(o2, &msg, sizeof(msg));
 	}
+	printf("%s\n", msg.data);
+	printf("%d\n", msg.hdr.code);
 
 	printf("Test completed...\n");
 	return 0;

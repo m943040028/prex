@@ -50,7 +50,6 @@ static pgd_t current_pgd;
 
 /* TLB entry index */
 static uint8_t tlb_entry_index;
-#define CONFIG_NTLB_ENTS	64
 
 typedef struct tlb_entry_s {
 	uint8_t	tlb_locked : 1;
@@ -273,6 +272,7 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 	return 0;
 }
 
+/* TODO: implement this function */
 asid_t
 mmu_allocate_asid(void)
 {

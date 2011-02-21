@@ -413,7 +413,6 @@ ENTRY(syscall_entry)
 
 #if defined(CONFIG_QEMU_WORKAROUND)
 	mfspr	r10, 0x116
-	/*addi	r10, r10, 4	*/	/* return address should be srr0 + 4 */
 	stw	r10, REG_SRR1(r1)
 	mfspr	r10, 0x117
 	stw	r10, REG_SRR0(r1)
@@ -422,8 +421,6 @@ ENTRY(syscall_entry)
 	addi	r10, r10, 4
 	stw	r10, REG_SRR0(r1)
 #endif
-
-	mfmsr	r29			/* r29: current msr value */
 	mr	r30, r1			/* r30: trap frame */
 	subi	r1, r1, STKFRAME_LEN	/* Adjust stack frame for C routine */
 
@@ -437,7 +434,7 @@ ENTRY(syscall_entry)
 
 	cmpwi	cr0, r26, 0		/* exception_return? */
 	beq	1f			/* Skip storing error if so */
- 	stw	r3, REG_R3(r30)		/* Set return value */
+	stw	r3, REG_R3(r30)		/* Set return value */
 1:
 	bl	exception_deliver	/* Check exception */
 	mr	r1, r30			/* Restore stack */

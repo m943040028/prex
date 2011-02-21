@@ -34,7 +34,7 @@ endif
 #TASKS+= 	$(SRCDIR)/usr/test/malloc/malloc.rt
 #TASKS+= 	$(SRCDIR)/usr/test/mutex/mutex.rt
 #TASKS+= 	$(SRCDIR)/usr/test/sem/sem.rt
-TASKS+= 	$(SRCDIR)/usr/test/task/task.rt
+#TASKS+= 	$(SRCDIR)/usr/test/task/task.rt
 #TASKS+= 	$(SRCDIR)/usr/test/thread/thread.rt
 #TASKS+= 	$(SRCDIR)/usr/test/time/time.rt
 #TASKS+= 	$(SRCDIR)/usr/test/timer/timer.rt

@@ -42,6 +42,9 @@ typedef uint8_t		asid_t;		/* address space id */
 #define	pgd_set_asid(pgd, asid) ((pgd) = (pgd_t)((uint32_t)(pgd)|(asid)))
 #define	pgd_get_kv(pgd)	((pgd_t)((uint32_t)(pgd) & ~0xff))
 
+/* ASID 0 is reserved for boot_pgd */
+#define ASID_BOOT_PGD	0
+
 /* page directory entry */
 #define PDE_PRESENT	0x00000001
 #define PDE_ADDRESS	0xfffff000
@@ -61,7 +64,7 @@ typedef uint8_t		asid_t;		/* address space id */
  *  Virtual and physical address translation
  */
 #define PAGE_DIR(virt)      (int)((((vaddr_t)(virt)) >> 22) & 0x3ff)
-#define PAGE_TABLE(virt)    (int)((((vaddr_t)(virt)) >> 12) & 0xff)
+#define PAGE_TABLE(virt)    (int)((((vaddr_t)(virt)) >> 12) & 0x3ff)
 
 /*
  * Page Directory Operator

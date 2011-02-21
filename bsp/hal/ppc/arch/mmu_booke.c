@@ -277,7 +277,7 @@ asid_t
 mmu_allocate_asid(void)
 {
 
-	static asid_t asid = 0;
+	static asid_t asid = 1;
 	return asid++;
 }
 
@@ -304,7 +304,7 @@ mmu_newmap(void)
 
 	/* Copy kernel page tables */
 	i = PAGE_DIR(KERNBASE);
-	memcpy(&pgd[i], &boot_pgd[i], (size_t)(1024 - i));
+	memcpy(&pgd[i], &boot_pgd[i], (size_t)(1024 - i) * 4);
 
 	/* Assign Address Space id for this new map */
 	pgd_set_asid(pgd, mmu_allocate_asid());
@@ -440,6 +440,8 @@ mmu_premap(paddr_t phys, vaddr_t virt)
 {
 	virt &= TLB_EPN_MASK;
 	phys &= TLB_RPN_MASK;
+
+	mtspr(SPR_PID, ASID_BOOT_PGD);
 
 	/* this tlb entry is safe to be replaced after boot_pgd is
 	   setup for mmaped I/O space */

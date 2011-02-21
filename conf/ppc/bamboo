@@ -43,7 +43,7 @@ options		QEMU_WORKAROUND
 #
 # General setup
 #
-#options 	POSIX		# POSIX support
+options 	POSIX		# POSIX support
 options 	CMDBOX		# Core utilities
 #options 	TINY		# Optimize for size
 

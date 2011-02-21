@@ -40,7 +40,7 @@
 #include <unistd.h>
 #include <assert.h>
 
-/* #define DEBUG_EXEC 1 */
+#define DEBUG_EXEC 1
 
 #ifdef DEBUG_EXEC
 #define DPRINTF(a)	dprintf a

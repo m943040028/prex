@@ -127,8 +127,6 @@ mmu_flush_tlb_entry(uint8_t asid, vaddr_t va)
 		read_tlb_entry(i, &data, &tag, &as);
 		if (((data & ~PAGE_MASK) == va) &&
 		     as == asid) {
-			DPRINTF(("invalid entry: %d, va, %08x, aisd: %d\n",
-				  i, va, asid));
 			write_tlb_entry(i, 0, 0); /* invalid the entry*/
 		}
 	}
@@ -231,8 +229,6 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 	uint32_t pde_flag = 0;
 	pte_t pte;
 	paddr_t pg;
-	DPRINTF(("%s(): %d: %08x -> %08x, size:%x, type:%x\n",
-		  __func__, pgd_get_asid(pgd), va, pa, size, type));
 
 	pa = round_page(pa);
 	va = round_page(va);

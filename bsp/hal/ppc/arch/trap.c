@@ -105,9 +105,6 @@ void handle_tlb_miss(struct cpu_regs *regs)
 	esr = mfspr(SPR_ESR);
 	dear = mfspr(SPR_DEAR);
 
-	DPRINTF(("%d: srr0:%08x, dear=%08x\n",
-		  pgd_get_asid(pgd), regs->srr0, dear));
-
 	/* 
 	 * Search on current page global directory
 	 */

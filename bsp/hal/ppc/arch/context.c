@@ -102,9 +102,6 @@ context_set(context_t ctx, int type, register_t val)
 		/* User mode stack pointer */
 		u = ctx->uregs;
 
-		/* Adjust stack for C code */
-		val -= STKFRAME_LEN;
-
 		u->gr[1] = (uint32_t)val;
 		break;
 

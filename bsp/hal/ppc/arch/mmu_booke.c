@@ -116,6 +116,24 @@ mmu_dump_tlb_entries(void)
 	}
 }
 
+void __inline
+mmu_flush_tlb_entry(uint8_t asid, vaddr_t va)
+{
+	int i = 0;
+	for (; i < CONFIG_NTLB_ENTS; i++) {
+		uint32_t tag;
+		uint32_t data;
+		uint32_t as;
+		read_tlb_entry(i, &data, &tag, &as);
+		if (((data & ~PAGE_MASK) == va) &&
+		     as == asid) {
+			DPRINTF(("invalid entry: %d, va, %08x, aisd: %d\n",
+				  i, va, asid));
+			write_tlb_entry(i, 0, 0); /* invalid the entry*/
+		}
+	}
+}
+
 /*
  * Called via every timer ticks, used to randomly choose a
  * victim TLB entry.
@@ -213,6 +231,8 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 	uint32_t pde_flag = 0;
 	pte_t pte;
 	paddr_t pg;
+	DPRINTF(("%s(): %d: %08x -> %08x, size:%x, type:%x\n",
+		  __func__, pgd_get_asid(pgd), va, pa, size, type));
 
 	pa = round_page(pa);
 	va = round_page(va);
@@ -262,13 +282,15 @@ mmu_map(pgd_t pgd, paddr_t pa, vaddr_t va, size_t size, int type)
 		}
 		/* Set new entry into page table */
 		pte[PAGE_TABLE(va)] = (uint32_t)pa | pte_flag;
+		if (pte_flag == 0)
+			mmu_flush_tlb_entry(pgd_get_asid(pgd), va);
 
 		/* Process next page */
 		pa += PAGE_SIZE;
 		va += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
-	/*flush_tlb();*/
+
 	return 0;
 }
 
@@ -320,8 +342,6 @@ mmu_terminate(pgd_t pgd)
 {
 	int i;
 	pte_t pte;
-
-	/*flush_tlb();*/
 
 	/* Release all user page table */
 	for (i = 0; i < PAGE_DIR(KERNBASE); i++) {

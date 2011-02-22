@@ -105,6 +105,9 @@ void handle_tlb_miss(struct cpu_regs *regs)
 	esr = mfspr(SPR_ESR);
 	dear = mfspr(SPR_DEAR);
 
+	DPRINTF(("%d: srr0:%08x, dear=%08x\n",
+		  pgd_get_asid(pgd), regs->srr0, dear));
+
 	/* 
 	 * Search on current page global directory
 	 */
@@ -147,17 +150,6 @@ trap_handler(struct cpu_regs *regs)
 	printf("============================\n");
 
 	trap_dump(regs);
-
-	{
-		int sp = regs->gr[1];
-		int i = sp - 0x100;
-		printf("dump stack:\n");
-		for (; i < sp + 0x200 ; i += 4*4) {
-			printf("0x%08x: %08x %08x %08x %08x\n",
-			      i, *(uint32_t *)(i), *(uint32_t *)(i+4),
-			      *(uint32_t *)(i+8), *(uint32_t *)(i+12));
-		}
-	}
 	for (;;) ;
 #endif
 	if ((regs->srr1 & MSR_PR) != MSR_PR)

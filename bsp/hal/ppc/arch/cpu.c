@@ -116,5 +116,23 @@ write_tlb_entry(uint8_t entry, uint32_t data, uint32_t tag)
 		: "memory"
 	);
 }
-#endif
 
+void __inline
+read_tlb_entry(uint8_t entry, uint32_t *data, uint32_t *tag,
+	       uint32_t *asid)
+{
+	uint32_t orig_asid;
+
+	__asm__ __volatile__(
+		"mfspr	%[orig_as], %[pid]\n"
+		"tlbre	%[t], %[e], 0\n" /* tag */
+		"mfspr	%[as], %[pid]\n" /* PID */
+		"tlbre	%[d], %[e], 1\n" /* data */
+		"mtspr	%[pid], %[orig_as]"
+		: [d] "=r"(*data), [t] "=r" (*tag),
+		  [as] "=r" (*asid), [orig_as] "=r" (orig_asid)
+		: [e] "r" (entry), [pid]"i"(SPR_PID)
+		: "cc"
+	);
+}
+#endif

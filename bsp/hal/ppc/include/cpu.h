@@ -198,6 +198,7 @@ void	 outb(int, u_char);
 u_char	 inb(int);
 #if defined(CONFIG_MMU)
 void	 write_tlb_entry(uint8_t, uint32_t, uint32_t);
+void	 read_tlb_entry(uint8_t, uint32_t *, uint32_t *, uint32_t *);
 #endif
 __END_DECLS
 

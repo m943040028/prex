@@ -99,7 +99,7 @@ device		ramdisk		# RAM disk
 # Hardware configuations
 #
 options		NS16550_BASE=0xef600300
-options		NS16550_IRQ=26
+options		NS16550_IRQ=0
 options		MC146818_BASE=0x70
 
 #

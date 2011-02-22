@@ -367,7 +367,7 @@ elf_probe(struct exec *exec)
 
 	/* Check ELF header */
 	ehdr = (Elf32_Ehdr *)exec->header;
-	DPRINTF(("exec: ELF magic %c %c %c %c\n",
+	DPRINTF(("exec: ELF magic %x %x %x %x\n",
 		 ehdr->e_ident[EI_MAG0],
 		 ehdr->e_ident[EI_MAG1],
 		 ehdr->e_ident[EI_MAG2],

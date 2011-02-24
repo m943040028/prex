@@ -5,7 +5,7 @@
 #
 # Make options
 #
-makeoptions	GCCFLAGS+= -mcpu=440 -mtune=440 -m32 -mno-eabi -msoft-float
+makeoptions	GCCFLAGS+= -mcpu=405 -mtune=405 -m32 -mno-eabi -msoft-float
 #makeoptions	GCCFLAGS+= -fno-dwarf2-cfi-asm
 makeoptions	ASFLAGS+= -mregnames -m405
 
@@ -29,8 +29,7 @@ options 	FS_THREADS=4	# Number of file system threads
 #
 # Platform settings
 #
-options		PPC44x		# Processor type
-options		PPC_BOOKE	# PowerPC Book E compatible
+options		PPC_40x		# Processor type
 options 	MMU		# Memory management unit
 options 	CACHE		# Cache memory
 options		NTLB_ENTS=64	# How many TLB entries
@@ -38,7 +37,7 @@ options		NTLB_ENTS=64	# How many TLB entries
 #options 	ROMBOOT		# Boot from ROM
 options 	BOOTDISK	# Disk for /boot directory
 options		NUICS=1		# How Many Universal Interrupt Controller We have
-options		QEMU_WORKAROUND
+options		PPC405_BOOTROM	# Build boot rom (for Qemu)
 
 #
 # General setup

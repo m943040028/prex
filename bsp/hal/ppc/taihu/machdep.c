@@ -28,57 +28,138 @@
  */
 
 /*
- * clock.c - clock driver for Power PC decrementer.
+ * machdep_taihu.c - machine-dependent routines for PPC40x EvB
  */
 
-#include <sys/ipl.h>
+#include <machine/syspage.h>
+#include <sys/power.h>
+#include <sys/bootinfo.h>
 #include <kernel.h>
-#include <timer.h>
-#include <irq.h>
-#include <cpu.h>
-#include <cpufunc.h>
+#include <page.h>
 #include <mmu.h>
+#include <cpu.h>
+#include <io.h>
+#include <cpufunc.h>
+#include <locore.h>
 
-#define DECR_COUNT	100
+extern void *exception_vector;
+extern void *exception_vector_end;
+
+#ifdef CONFIG_MMU
+/*
+ * Virtual and physical address mapping
+ *
+ *      { virtual, physical, size, type }
+ */
+struct mmumap mmumap_table[] =
+{
+	/*
+	 * Physical memory
+	 */
+	{ 0x80000000, 0x00000000, 0x8000000, VMT_RAM },
+
+	/*
+	 * I/O space
+	 */
+	{ 0xef000000, 0xef000000, 0x1000000, VMT_IO },
+
+	{ 0,0,0,0 }
+};
+#endif
 
 /*
- * Timer handler.
+ * Idle
  */
-int
-clock_isr(void *arg)
+void
+machine_idle(void)
 {
-	int s;
 
-	/* Ack */
-	mtspr(SPR_TSR, TSR_DIS);
-
-	/* Reset decrementer */
-	mtspr(SPR_DECR, DECR_COUNT);
-
-	/* Update victim tlb index */
-	mmu_tlb_index_update();
-
-	s = splhigh();
-	timer_handler();
-	splx(s);
-
-	return INT_DONE;
+	cpu_idle();
 }
 
 /*
- * Initialize clock H/W.
+ * Cause PReP machine reset.
+ */
+static void
+machine_reset(void)
+{
+	u_char val;
+
+	val = inb(0x92);
+	val &= ~1UL;
+	outb(0x92, val);
+
+	val = inb(0x92);
+	val |= 1;
+	outb(0x92, val);
+
+	/* NOTREACHED */
+}
+
+/*
+ * Set system power
  */
 void
-clock_init(void)
+machine_powerdown(int state)
 {
 
-	DPRINTF(("clock_init\n"));
-	/* Clear any pending timer interrupts */
-	mtspr(SPR_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
+	DPRINTF(("Power down machine\n"));
 
-	/* Enable decrementer interrupt */
-	mtspr(SPR_TCR, TCR_DIE);
+	splhigh();
 
-	/* Set decrementer */
-	mtspr(SPR_DECR, DECR_COUNT);
+	switch (state) {
+	case PWR_SUSPEND:
+	case PWR_OFF:
+		for (;;)
+			cpu_idle();
+		/* NOTREACHED */
+		break;
+	case PWR_REBOOT:
+		machine_reset();
+		/* NOTREACHED */
+		break;
+	}
+}
+
+/*
+ * Return pointer to the boot information.
+ */
+void
+machine_bootinfo(struct bootinfo **bip)
+{
+
+	*bip = (struct bootinfo *)BOOTINFO;
+}
+
+void
+machine_abort(void)
+{
+
+	for (;;) ;
+}
+
+/*
+ * Machine-dependent startup code
+ */
+void
+machine_startup(void)
+{
+	void *vector_offset = (void *)SYSPAGE;
+
+	/*
+	 * Reserve system pages.
+	 */
+	page_reserve(kvtop(SYSPAGE), SYSPAGESZ);
+
+	/*
+	 * Copy exception vectors.
+	 */
+	memcpy(vector_offset, &exception_vector, 0x3000);
+
+#ifdef CONFIG_MMU
+	/*
+	 * Initialize MMU
+	 */
+	mmu_init(mmumap_table);
+#endif
 }

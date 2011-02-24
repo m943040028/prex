@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009, Kohsuke Ohtani
+ * Copyright (c) 2011, Sheng-Yu Chiu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +31,8 @@
 /*
  * interrupt.c - interrupt management routines for universal interrupt controller
  */
+
+/* TODO: cascade multiple uics */
 
 #include <kernel.h>
 #include <hal.h>
@@ -192,7 +195,7 @@ interrupt_handler(struct cpu_regs *regs)
 	int old_ipl, new_ipl;
 
 	/* Handle decrementer interrupt */
-	if (regs->trap_no == TRAP_DECREMENTER) {
+	if (regs->trap_no == TRAP_PIT_INTERRUPT) {
 		clock_isr(NULL);
 		return;
 	}
@@ -218,7 +221,7 @@ interrupt_handler(struct cpu_regs *regs)
 }
 
 /*
- * Initialize 8259 interrupt controllers.
+ * Initialize universal interrupt controllers.
  * All interrupts will be masked off in ICU.
  */
 void

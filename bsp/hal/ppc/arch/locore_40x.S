@@ -29,7 +29,7 @@
  */
 
 /*
- * locore_44x.S - low level platform support for AMCC PowerPC 44x series
+ * locore_40x.S - low level platform support for AMCC PowerPC 44x series
  */
 
 /*
@@ -38,10 +38,10 @@
  *  SPRG1 - saved stack pointer
  *  SPRG2 - interrupt nest counter
  *  SPRG3 - scratch pad
+ *  SPRG4 - trap id
  *
- * For QEMU_WORKAROUND:
- *  SPRG6 - saved SRR1
- *  SPRG7 - saved SRR0
+ *  SPRG6 - saved srr1
+ *  SPRG7 - saved srr0
  */
 
 #include <conf/config.h>
@@ -54,31 +54,26 @@
 #include <cpu.h>
 
 #if !defined(CONFIG_MMU)
-#error "It's meaningless to disable MMU on AMCC PowerPC 44x architecture."
+#error "It's meaningless to disable MMU on AMCC PowerPC 40x architecture."
 #endif
 
 	.section ".text","ax"
 
-#if defined(CONFIG_QEMU_WORKAROUND)
 #define ABS_JUMP(target) \
-	mtsprg3	r12; /* save r12 */ \
-	mfspr	r12, SPR_SRR1; \
-	mtspr	0x116, r12; /* save srr1 */ \
-	mfspr	r12, SPR_SRR0; \
-	mtspr	0x117, r12; /* save srr0 */ \
+	mtsprg3	r12; \
+	mfsrr1	r12; \
+	mtsprg6	r12; /* sprg6: saved srr1 */ \
+	mfsrr0	r12; \
+	mtsprg7	r12; /* sprg7: saved srr0 */ \
 	mfmsr	r12; \
 	ori	r12, r12, (MSR_IR|MSR_DR); \
-	mtspr	SPR_SRR1, r12; /* return msr */	\
+	mtsrr1	r12; /* return msr */	\
 	lis	r12, (target)@ha; \
 	ori	r12, r12, (target)@l; \
-	mtspr	SPR_SRR0, r12; /* return addr */ \
-	mfsprg3	r12; /* restore r12 */ \
+	mtsrr0	r12; /* return addr */ \
+	mfsprg3	r12; \
 	sync; \
 	rfi
-#else
-#define ABS_JUMP(target) \
-	b	(target)
-#endif
 
 /*
  * Macro to save all registers.
@@ -118,9 +113,9 @@
 	stw	r31, REG_R31(r1); \
 	mfsprg1	r10; 			/* Get saved sp */ \
 	stw	r10, REG_R1(r1); \
-	mfspr	r10, SPR_SRR0; \
+	mfspr	r10, SPR_SPRG7;		/* sprg7: saved srr0 */\
 	stw	r10, REG_SRR0(r1); \
-	mfspr	r10, SPR_SRR1; \
+	mfspr	r10, SPR_SPRG6;		/* sprg6: saved srr1 */\
 	stw	r10, REG_SRR1(r1); \
 	mfspr	r10, SPR_LR; \
 	stw	r10, REG_LR(r1); \
@@ -129,7 +124,9 @@
 	mfspr	r10, SPR_XER; \
 	stw	r10, REG_XER(r1); \
 	mfcr	r10; \
-	stw	r10, REG_CR(r1);
+	stw	r10, REG_CR(r1); \
+	mfsprg4	r10; \
+ 	stw	r10, CTX_TRAPNO(r1)
 
 /*
  * Macro to restore all registers.
@@ -181,13 +178,6 @@
 	lwz	r30, REG_R30(r1); \
 	lwz	r31, REG_R31(r1);
 
-
-#if defined(CONFIG_QEMU_WORKAROUND)
-#define GET_MSR mfspr	r1, 0x116
-#else
-#define GET_MSR	mfsrr1	r1
-#endif
-
 /*
  * Macro to build an exception entry.
  * We assume interrupts are disabled.
@@ -195,69 +185,67 @@
 #define EXCEPTION_ENTRY(name, id, xfer) \
 	.align 5; \
 exception_##name: \
-	ABS_JUMP(virt_##name); \
-virt_##name:; \
 	mtsprg1 r1;		/* sprg1: current sp */ \
 	mtsprg3	r10; 		/* sprg3: saved r10 */ \
 	mfcr	r10; 		/* r10:	saved cr */ \
-	GET_MSR; \
+	mfsrr1	r1; 		/* r1: msr before trap */\
 	mtcr	r1; \
 	bt	17, 1f;		/* Exception from user mode? */ \
 	mfsprg1	r1; 		/* Kernel mode => restore orignal sp */ \
 	b	2f; \
 1:	mfsprg0	r1; 		/* User mode => Load kernel stack */ \
 2:	mtcr	r10; 		/* Restore cr */ \
+	li	r10, id; 	/* sprg4: trap_id */\
+	mtsprg4	r10; \
 	mfsprg3 r10;		/* Restore r10 */ \
-	SAVE_ALL ; \
-	li	r10, id; \
-	b	xfer;
+	ABS_JUMP(xfer);
 
-#define INTR_ENTRY(name, id) \
+#define INTR_ENTRY(n, name, id) \
+		. = (n); \
 		EXCEPTION_ENTRY(name, id, interrupt_common)
 
-#define TRAP_ENTRY(name, id) \
+#define TRAP_ENTRY(n, name, id) \
+		. = (n); \
 		EXCEPTION_ENTRY(name, id, trap_common)
 
 /*
  * Macro to build a system call entry.
  */
-#define SYSC_ENTRY(name, id) \
-	.align 5; \
+#define SYSC_ENTRY(n, name, id) \
+	. = (n); \
 exception_##name: \
 	mtsprg1 r1;		/* sprg1: current sp */ \
 	mfsprg0	r1; 		/* Load kernel stack */ \
+	mtsprg3	r10; \
 	li	r10, id; \
+	mtsprg4 r10; \
+	mfsprg3 r10; \
 	ABS_JUMP(syscall_entry);
 
-#define RESET_ENTRY(name) \
-	.align 5; \
+#define RESET_ENTRY(n, name) \
+	. = (n); \
 exception_##name: \
 	ABS_JUMP(kernel_start)
-
-#define SET_IVOR(vector_number, name) \
-	li	r26, exception_##name@l; \
-	mtspr	SPR_IVOR##vector_number, r26; \
-	sync
 
 /*
  * Exception vectors
  */
 .globl	exception_vector
 exception_vector:
-RESET_ENTRY(system_reset)
-TRAP_ENTRY(machine_check  ,TRAP_MACHINE_CHECK)
-TRAP_ENTRY(dsi            ,TRAP_DSI)
-TRAP_ENTRY(isi            ,TRAP_ISI)
-INTR_ENTRY(external_intr  ,TRAP_EXT_INTERRUPT)
-TRAP_ENTRY(alignment      ,TRAP_ALIGNMENT)
-TRAP_ENTRY(program        ,TRAP_PROGRAM)
-TRAP_ENTRY(fp_unavailable ,TRAP_FP_UNAVAILABLE)
-INTR_ENTRY(decrementer    ,TRAP_DECREMENTER)
-SYSC_ENTRY(syscall        ,TRAP_SYSTEM_CALL)
-TRAP_ENTRY(trace          ,TRAP_TRACE)
-TRAP_ENTRY(fp_assist      ,TRAP_FP_ASSIST)
-TRAP_ENTRY(data_tlb_miss  ,TRAP_DATA_TLB_MISS)
-TRAP_ENTRY(inst_tlb_miss  ,TRAP_INST_TLB_MISS)
+RESET_ENTRY(0x100,system_reset)
+TRAP_ENTRY(0x200, machine_check  ,TRAP_MACHINE_CHECK)
+TRAP_ENTRY(0x300, dsi            ,TRAP_DSI)
+TRAP_ENTRY(0x400, isi            ,TRAP_ISI)
+INTR_ENTRY(0x500, external_intr  ,TRAP_EXT_INTERRUPT)
+TRAP_ENTRY(0x600, alignment      ,TRAP_ALIGNMENT)
+TRAP_ENTRY(0x700, program        ,TRAP_PROGRAM)
+TRAP_ENTRY(0x800, fp_unavailable ,TRAP_FP_UNAVAILABLE)
+SYSC_ENTRY(0xc00, syscall        ,TRAP_SYSTEM_CALL)
+TRAP_ENTRY(0xd00, trace          ,TRAP_TRACE)
+TRAP_ENTRY(0xe00, fp_assist      ,TRAP_FP_ASSIST)
+INTR_ENTRY(0x1000,pit_interrupt  ,TRAP_PIT_INTERRUPT)
+TRAP_ENTRY(0x1100,data_tlb_miss  ,TRAP_DATA_TLB_MISS)
+TRAP_ENTRY(0x1200,inst_tlb_miss  ,TRAP_INST_TLB_MISS)
 
 .globl	exception_vector_end
 exception_vector_end:
@@ -320,30 +308,11 @@ ENTRY(kernel_start)
 	tlbwe	r4, r2, 0	/* write tlbhi(Tag entry) */
 	isync
 
-	/* set interrupt vector */
-	SET_IVOR(0, system_reset)
-	SET_IVOR(1, machine_check)
-	SET_IVOR(2, dsi)
-	SET_IVOR(3, isi)
-	SET_IVOR(4, external_intr)
-	SET_IVOR(5, alignment)
-	SET_IVOR(6, program)
-	SET_IVOR(7, fp_unavailable)
-	SET_IVOR(8, syscall)
-	SET_IVOR(10, decrementer)
-	SET_IVOR(11, fp_assist)
-	SET_IVOR(13, data_tlb_miss)
-	SET_IVOR(14, inst_tlb_miss)
+	/* Allow client access on zone 0 */
+	lis	r2, 0x40000000@ha
+	mtspr	SPR_ZPR, r2
 
-	/* Establish the interrupt vector base */
-	lis     r4, exception_vector@h	/* IVPR only uses the high 16-bits */
-#if defined(CONFIG_QEMU_WORKAROUND)
-	lis	r3, KERNBASE@h
-	sub	r4, r4, r3
-#endif
-	mtspr   SPR_IVPR, r4
-
-	/* enable intrustion and data translation */
+	/* Enable intrustion and data translation */
 	mfmsr	r3
 	ori	r3, r3, (MSR_IR|MSR_DR)
 	mtspr	SPR_SRR1, r3		/* return msr */
@@ -360,13 +329,7 @@ ENTRY(kernel_start)
  * r10 - trap id
  */
 ENTRY(interrupt_common)
-#if defined(CONFIG_QEMU_WORKAROUND)
-	mfspr	r2, 0x116
-	stw	r2, REG_SRR1(r1)
-	mfspr	r2, 0x117
-	stw	r2, REG_SRR0(r1)
-#endif
-	stw	r10, CTX_TRAPNO(r1)
+	SAVE_ALL
 
 	mfsprg2	r28			/* r28: current IRQ nesting level */
 	addi	r3, r28, 1		/* Increment IRQ nesting level */
@@ -409,18 +372,7 @@ interrupt_ret:
 	.global syscall_ret
 ENTRY(syscall_entry)
 	SAVE_ALL
- 	stw	r10, CTX_TRAPNO(r1)
 
-#if defined(CONFIG_QEMU_WORKAROUND)
-	mfspr	r10, 0x116
-	stw	r10, REG_SRR1(r1)
-	mfspr	r10, 0x117
-	stw	r10, REG_SRR0(r1)
-#else
-	mfsrr0	r10
-	addi	r10, r10, 4
-	stw	r10, REG_SRR0(r1)
-#endif
 	mr	r30, r1			/* r30: trap frame */
 	subi	r1, r1, STKFRAME_LEN	/* Adjust stack frame for C routine */
 
@@ -451,13 +403,7 @@ syscall_ret:
  * r10 - trap id
  */
 ENTRY(trap_common)
-#if defined(CONFIG_QEMU_WORKAROUND)
-	mfspr	r2, 0x116
-	stw	r2, REG_SRR1(r1)
-	mfspr	r2, 0x117
-	stw	r2, REG_SRR0(r1)
-#endif
-	stw	r10, CTX_TRAPNO(r1)
+	SAVE_ALL
 
 	mfsprg2	r3			/* increment nest counter */
 	addi	r3, r3, 1

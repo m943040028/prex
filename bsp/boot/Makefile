@@ -21,6 +21,10 @@ ifndef LDSCRIPT
 LDSCRIPT:=	$(CURDIR)/$(ARCH)/arch/boot.ld
 endif
 
+ifeq ($(CONFIG_PPC405_BOOTROM),y)
+SUBDIR-y:=	ppc/tools/ppc405_bios
+endif
+
 include $(SRCDIR)/mk/common.mk
 
 $(TARGET): $(OBJS) $(LIBS) $(LDSCRIPT)

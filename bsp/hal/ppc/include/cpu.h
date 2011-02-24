@@ -76,37 +76,32 @@
 #define	SPR_SPRG1		273	/* SPR general 1 */
 #define	SPR_SPRG2		274	/* SPR general 2 */
 #define	SPR_SPRG3		275	/* SPR general 3 */
+#define	SPR_SPRG4		276	/* SPR general 4 */
+#define	SPR_SPRG5		277	/* SPR general 5 */
+#define	SPR_SPRG6		278	/* SPR general 6 */
+#define	SPR_SPRG7		279	/* SPR general 7 */
 #define	SPR_PVR			287	/* processor version register */
 
-#if defined(CONFIG_PPC_BOOKE)
-#define SPR_DECR		0x016	/* Decrementer Regiter */
-#define SPR_PID			0x030
-#define SPR_DECAR		0x036	/* Decrementer Auto-Reload Regiter */
-#define SPR_DEAR		0x03D	/* Data Error Address Register */
-#define SPR_ESR			0x03E	/* Exception Syndrome Register */
-#define	SPR_IVPR		0x03F	/* Interrupt Vector Prefix Register */
-#define SPR_TSR			0x150	/* Timer Status Register */
-#define SPR_TCR			0x154	/* Timer Control Register */
-#define SPR_IVOR0		0x190	/* Interrupt Vector Offset Register 0 */
-#define SPR_IVOR1		0x191	/* Interrupt Vector Offset Register 1 */
-#define SPR_IVOR2		0x192	/* Interrupt Vector Offset Register 2 */
-#define SPR_IVOR3		0x193	/* Interrupt Vector Offset Register 3 */
-#define SPR_IVOR4		0x194	/* Interrupt Vector Offset Register 4 */
-#define SPR_IVOR5		0x195	/* Interrupt Vector Offset Register 5 */
-#define SPR_IVOR6		0x196	/* Interrupt Vector Offset Register 6 */
-#define SPR_IVOR7		0x197	/* Interrupt Vector Offset Register 7 */
-#define SPR_IVOR8		0x198	/* Interrupt Vector Offset Register 8 */
-#define SPR_IVOR9		0x199	/* Interrupt Vector Offset Register 9 */
-#define SPR_IVOR10		0x19a	/* Interrupt Vector Offset Register 10 */
-#define SPR_IVOR11		0x19b	/* Interrupt Vector Offset Register 11 */
-#define SPR_IVOR12		0x19c	/* Interrupt Vector Offset Register 12 */
-#define SPR_IVOR13		0x19d	/* Interrupt Vector Offset Register 13 */
-#define SPR_IVOR14		0x19e	/* Interrupt Vector Offset Register 14 */
-#define SPR_IVOR15		0x19f	/* Interrupt Vector Offset Register 15 */
-#define	SPR_EVPR		0x3D6	/* Exception Vector Prefix Register */
-#endif /* CONFIG_PPC_BOOKE */
+#if defined(CONFIG_PPC_40x)
+#define SPR_ZPR			0x3B0	/* Zone Protection Register */
+#define SPR_PID			0x3B1	/* Process ID */
+#define SPR_DBCR1		0x3BD	/* Debug Control Register 1 */
+#define SPR_ESR			0x3D4	/* Exception Syndrome Register */
+#define SPR_DEAR		0x3D5	/* Data Error Address Register */
+#define SPR_TSR			0x3D8	/* Timer Status Register */
+#define SPR_PIT			0x3DB	/* Programmable Interval Timer */
+#define SPR_TCR			0x3DA	/* Timer Control Register */
+#define SPR_SRR2		0x3DE	/* Save/Restore Register 2 */
+#define SPR_SRR3		0x3DF	/* Save/Restore Register 3 */
+#define SPR_DBSR		0x3F0	/* Debug Status Register */
+#define SPR_DBCR0		0x3F2	/* Debug Control Register 0 */
+#define SPR_DAC1		0x3F6	/* Data Address Compare 1 */
+#define SPR_DAC2		0x3F7	/* Data Address Compare 2 */
+#define SPR_CSRR0		SPR_SRR2 /* Critical Save and Restore Register 0 */
+#define SPR_CSRR1		SPR_SRR3 /* Critical Save and Restore Register 1 */
+#endif /* CONFIG_PPC_40x */
 
-#if defined(CONFIG_PPC_BOOKE)
+#if defined(CONFIG_PPC_40x)
 /* Tag portion */
 #define TLB_EPN_MASK	0xFFFFFC00	/* Effective Page Number */
 #define TLB_PAGESZ_MASK	0x00000380
@@ -189,7 +184,7 @@
 #define TSR_DIS		TSR_PIS		/* DEC Interrupt Status */
 #define TSR_FIS		0x04000000	/* FIT Interrupt Status */
 
-#endif /* CONFIG_PPC_BOOKE */
+#endif /* CONFIG_PPC_40x */
 
 #ifndef __ASSEMBLY__
 

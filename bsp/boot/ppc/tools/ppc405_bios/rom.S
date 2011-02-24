@@ -27,44 +27,10 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _PPC_TRAP_H
-#define _PPC_TRAP_H
-
-#include <sys/cdefs.h>
-
 /*
- * Trap ID
+ * rom.S - Bios for ppc405ep EvB board
  */
-#define TRAP_SYSTEM_RESET	1
-#define TRAP_MACHINE_CHECK	2
-#define TRAP_DSI		3
-#define TRAP_ISI		4
-#define TRAP_EXT_INTERRUPT	5
-#define TRAP_ALIGNMENT		6
-#define TRAP_PROGRAM		7
-#define TRAP_FP_UNAVAILABLE	8
-#define TRAP_DECREMENTER	9
-#define TRAP_RESERVED0		10
-#define TRAP_RESERVED1		11
-#define TRAP_SYSTEM_CALL	12
-#define TRAP_TRACE		13
-#define TRAP_FP_ASSIST		14
-
-#define TRAP_PIT_INTERRUPT	32
-#define TRAP_DATA_TLB_MISS	33
-#define TRAP_INST_TLB_MISS	34
-
-
-#ifndef __ASSEMBLY__
-
-__BEGIN_DECLS
-void	 trap_handler(struct cpu_regs *);
-void	 trap_dump(struct cpu_regs *);
-#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
-void	 trap_unit_test(struct cpu_regs *);
-#endif
-__END_DECLS
-
-#endif /* !__ASSEMBLY__ */
-#endif /* !_PPC_TRAP_H */
-
+.section .boot, "aw", "progbits"
+.global _start
+_start:
+	ba	0x0

@@ -32,7 +32,7 @@
 
 #include <sys/types.h>
 
-#if defined(CONFIG_PPC_BOOKE)
+#if defined(CONFIG_PPC_40x)
 
 typedef uint32_t	*pgd_t;		/* page directory */
 typedef uint32_t	*pte_t;		/* page table entry */
@@ -142,5 +142,5 @@ typedef struct pte	*pte_t;		/* page table entry */
 
 #define ptetopg(pte, virt)
 
-#endif /* !CONFIG_PPC_BOOKE */
+#endif /* !CONFIG_PPC_40x */
 #endif /* !_PPC_MMU_H */

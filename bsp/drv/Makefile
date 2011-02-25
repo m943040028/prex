@@ -14,6 +14,7 @@ include $(CURDIR)/dev/base/Makefile.inc
 include $(CURDIR)/dev/block/Makefile.inc
 include $(CURDIR)/dev/cpufreq/Makefile.inc
 include $(CURDIR)/dev/dma/Makefile.inc
+include $(CURDIR)/dev/pci/Makefile.inc
 include $(CURDIR)/dev/input/Makefile.inc
 include $(CURDIR)/dev/misc/Makefile.inc
 include $(CURDIR)/dev/rtc/Makefile.inc

@@ -463,5 +463,6 @@ mmu_premap(paddr_t phys, vaddr_t virt)
 	   setup for mmaped I/O space */
 	write_tlb_entry(0, phys | TLB_WR,
 			virt | TLB_VALID | TLB_PAGESZ(PAGESZ_4K));
+	/* lock this entry for convenience */
 	tlb_lock(&tlb_entries[0]);
 }

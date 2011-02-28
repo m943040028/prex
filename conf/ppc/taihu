@@ -100,6 +100,8 @@ device		pci		# PCI support
 #
 options		NS16550_BASE=0xef600300
 options		NS16550_IRQ=0
+options		PCI_CONFIG_BASE=0xeec00000
+options		PCI_MMIO_ALLOC_BASE=0x40000000
 
 #
 # Command box

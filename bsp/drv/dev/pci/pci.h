@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, Sheng-Yu Chiu
+ * Copyright (c) MIT 6.828 JOS
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,40 +27,60 @@
  * SUCH DAMAGE.
  */
 
-/*
- * ppc4xx_pci.c - platform dependent configuration for ppc4xx pci<->plb bridge
- */
+#ifndef _DEV_PCI_PCI_H_
+#define	_DEV_PCI_PCI_H_
 
-#define PCIC0_INTERNAL_BASE		(0xef480000)
+#include <sys/endian.h>
 
-enum pcic0_internal_regs {
-	/* PLB Memory Map (PMM) registers 
-	   PLB addresses ->  PCI address */
-	PCIL0_PMM0LA	= PCIC0_INTERNAL_BASE + 0x0,
-	PCIL0_PMM0MA	= PCIC0_INTERNAL_BASE + 0x4,
-	PCIL0_PMM0PCILA	= PCIC0_INTERNAL_BASE + 0x8,
-	PCIL0_PMM0PCIHA	= PCIC0_INTERNAL_BASE + 0xc,
-	PCIL0_PMM1LA	= PCIC0_INTERNAL_BASE + 0x10,
-	PCIL0_PMM1MA	= PCIC0_INTERNAL_BASE + 0x14,
-	PCIL0_PMM1PCILA	= PCIC0_INTERNAL_BASE + 0x18,
-	PCIL0_PMM1PCIHA	= PCIC0_INTERNAL_BASE + 0x1c,
-	PCIL0_PMM2LA	= PCIC0_INTERNAL_BASE + 0x20,
-	PCIL0_PMM2MA	= PCIC0_INTERNAL_BASE + 0x24,
-	PCIL0_PMM2PCILA	= PCIC0_INTERNAL_BASE + 0x28,
-	PCIL0_PMM2PCIHA	= PCIC0_INTERNAL_BASE + 0x2c,
+#if BYTE_ORDER == BIG_ENDIAN
+#define swapb_32(x) \
+({ \
+	uint32_t __x = (x); \
+ 	((uint32_t)( \
+	(((uint32_t)(__x) & (uint32_t)0x000000ffUL) << 24) | \
+	(((uint32_t)(__x) & (uint32_t)0x0000ff00UL) <<  8) | \
+	(((uint32_t)(__x) & (uint32_t)0x00ff0000UL) >>  8) | \
+	(((uint32_t)(__x) & (uint32_t)0xff000000UL) >> 24) )); \
+})
+#define	host_to_pci(v)	swapb_32(v)
+#define pci_to_host(v)	swapb_32(v)
+#else
+#define host_to_pci(v)	(v)
+#define pci_to_host(v)	(v)
+#endif
 
-	/* PCI Target Map (PTM) registers
-	   PCI addresses -> PLB address */
-	PCIL0_PTM1MS	= PCIC0_INTERNAL_BASE + 0x30,
-	PCIL0_PTM1LA	= PCIC0_INTERNAL_BASE + 0x34,
-	PCIL0_PTM2MS	= PCIC0_INTERNAL_BASE + 0x38,
-	PCIL0_PTM2LA	= PCIC0_INTERNAL_BASE + 0x3c,
-	PCI_REG_SIZE	= PCIC0_INTERNAL_BASE + 0x40,
+enum pci_config_space {
+	PCI_CFG_ADDR	= CONFIG_PCI_CONFIG_BASE + 0x0,
+	PCI_CFG_DATA	= CONFIG_PCI_CONFIG_BASE + 0x4,
 };
 
-int
-platform_pci_init(void)
-{
-	/* TODO: complete this function */
-	return 0;
-}
+struct pci_func {
+	struct pci_bus *bus;	/* Primary bus for bridges */
+
+	uint32_t dev;
+	uint32_t func;
+
+	uint32_t dev_id;
+	uint32_t dev_class;
+
+	uint32_t reg_base[6];
+	uint32_t reg_size[6];
+	uint8_t irq_line;
+};
+
+struct pci_bus {
+	struct pci_func *parent_bridge;
+	uint32_t busno;
+};
+
+struct pci_resource_map {
+	char            name[20];
+	pci_resource_t  type;
+	paddr_t         start;
+	size_t          size;
+	struct list     link;
+};
+
+
+#endif /* _DEV_PCI_PCI_H_ */
+

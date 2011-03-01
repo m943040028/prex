@@ -81,19 +81,13 @@ options 	PM_PERFORMANCE	# Power policy: Parformance optimized
 #
 device		pm		# Power management
 device		cons		# System console
-#device		wscons		# Workstation console
-#device		pckbd	    	# PC/AT Keyboard (P:wscons)
-#device		vga	    	# VGA video (P:wscons)
 device		serial		# Logical serial
 device		ns16550	    	# NS16550 serial port (P:serial)
-#device		psaux		# PS/2 Mouse
-#device		rtc		# Logical RTC
-#device		mc146818	# MC146818 Real time clock (P:rtc)
 device		null		# NULL device
 device		zero		# Zero device
 device		ramdisk		# RAM disk
-#device		fdd		# Floppy disk drive
 device		pci		# PCI support
+device		e1000		# E1000 Giga-ethernet support
 
 #
 # Hardware configuations

@@ -31,8 +31,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _DEV_PCI_PCIREG_H_
-#define	_DEV_PCI_PCIREG_H_
+#ifndef _DEV_PCIREG_H_
+#define	_DEV_PCIREG_H_
 
 /*
  * Standardized PCI configuration information
@@ -705,4 +705,4 @@ struct pci_vpd {
  */
 #define PCI32_DMA_BOUNCE_THRESHOLD	0x100000000ULL
 
-#endif /* _DEV_PCI_PCIREG_H_ */
+#endif /* _DEV_PCIREG_H_ */

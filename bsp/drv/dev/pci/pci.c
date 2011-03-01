@@ -34,24 +34,74 @@
 #include <sys/param.h>
 #include <sys/cdefs.h>
 #include <sys/list.h>
+#include <sys/endian.h>
 #include <driver.h>
 #include <pci.h>
+#include "pcireg.h"
 
 #define SHOW_PCI_VERBOSE_INFO	1
 #define DEBUG_PCI		1
 
-#include "pcireg.h"
-#include "pci.h"
+#if BYTE_ORDER == BIG_ENDIAN
+uint32_t host_to_pci(uint32_t x)
+{
+
+	u_char *s = (u_char *)&x;
+	return (uint32_t)(s[0] | s[1] << 8 | s[2] << 16 | s[3] << 24);
+}
+uint32_t pci_to_host(uint32_t x)
+{
+
+	u_char *s = (u_char *)&x;
+	return (uint32_t)(s[0] | s[1] << 8 | s[2] << 16 | s[3] << 24);
+}
+
+#else
+#define host_to_pci(v)	(v)
+#define pci_to_host(v)	(v)
+#endif
+
+enum pci_config_space {
+	PCI_CFG_ADDR	= CONFIG_PCI_CONFIG_BASE + 0x0,
+	PCI_CFG_DATA	= CONFIG_PCI_CONFIG_BASE + 0x4,
+};
+
+struct pci_func {
+	struct pci_bus *bus;	/* Primary bus for bridges */
+
+	uint32_t dev;
+	uint32_t func;
+
+	uint32_t dev_id;
+	uint32_t dev_class;
+
+	uint32_t reg_base[6];
+	uint32_t reg_size[6];
+	uint8_t irq_line;
+
+	struct list link;
+};
+
+struct pci_bus {
+	struct pci_func *parent_bridge;
+	uint32_t busno;
+};
+
 
 static struct list pci_resource_list = LIST_INIT(pci_resource_list);
+static struct list pci_func_list = LIST_INIT(pci_func_list);
 static paddr_t pci_map_base = CONFIG_PCI_MMIO_ALLOC_BASE;
+
+struct pci_func *to_pci_func(list_t list) {
+	return list_entry(list, struct pci_func, link);
+}
 
 static void
 pci_conf1_set_addr(uint32_t bus,
 		   uint32_t dev,
 		   uint32_t func,
 		   uint32_t offset)
-{                                                                                                                                                                                                                                            
+{
 	ASSERT(bus < 256);
 	ASSERT(dev < 32);
 	ASSERT(func < 8);
@@ -63,14 +113,14 @@ pci_conf1_set_addr(uint32_t bus,
 	bus_write_32(PCI_CFG_ADDR, host_to_pci(v));
 }
 
-static uint32_t
+uint32_t
 pci_conf_read(struct pci_func *f, uint32_t off)
 {
-	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);                                                                                                                                                                             
+	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);
 	return pci_to_host(bus_read_32(PCI_CFG_DATA));
 }
 
-static void
+void
 pci_conf_write(struct pci_func *f, uint32_t off, uint32_t v)
 {
 	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);
@@ -102,14 +152,38 @@ pci_print_func(struct pci_func *f)
 		f->irq_line);
 }
 
-void
-pci_func_enable(struct pci_func *f)
+static paddr_t
+pci_allocate_memory(size_t size) 
 {
-	pci_conf_write(f, PCI_COMMAND_STATUS_REG,
-			  PCI_COMMAND_IO_ENABLE |
-			  PCI_COMMAND_MEM_ENABLE |
-			  PCI_COMMAND_MASTER_ENABLE);
 
+	/* Calculate address we will assign the device.
+	 * This can be made more clever, specifically:
+	 *  1) The lowest 1MB should be reserved for 
+	 *     devices with 1M memory type.
+	 *     : Needs to be handled.
+	 *  2) The low 32bit space should be reserved for
+	 *     devices with 32bit type.
+	 *     : With the usual handful of devices it is unlikely that the
+	 *       low 4GB space will become full.
+	 *  3) A bitmap can be used to avoid fragmentation.
+	 *     : Again, unlikely to be necessary.
+	 *
+	 */
+	paddr_t aligned_addr;
+
+	/* For now, simply align to required size. */
+	aligned_addr = (pci_map_base+size-1) & ~(size-1);
+
+	pci_map_base = aligned_addr + size;
+	if (pci_map_base < aligned_addr)
+		return 0; /* address exhausted */
+
+	return pci_map_base;
+}
+
+int
+pci_func_configure(struct pci_func *f)
+{
 	uint32_t bar_width;
 	uint32_t bar;
 	for (bar = PCI_MAPREG_START; bar < PCI_MAPREG_END;
@@ -132,35 +206,68 @@ pci_func_enable(struct pci_func *f)
 
 			size = PCI_MAPREG_MEM_SIZE(rv);
 			base = PCI_MAPREG_MEM_ADDR(oldv);
+			if (!base) {
+				/* device is not properly configured,
+				   allocate mmio address for it */
+				base = pci_allocate_memory(size);
+				if (!base)
+					return ENOMEM;
+				oldv = base;
+			}
 #ifdef SHOW_PCI_VERBOSE_INFO
 			printf("  mem region %d: %d bytes at 0x%x\n",
 			       regnum, size, base);
 #endif
 		} else {
-			size = PCI_MAPREG_IO_SIZE(rv);
-			base = PCI_MAPREG_IO_ADDR(oldv);
-#ifdef SHOW_PCI_VERBOSE_INFO
-			printf("  io region %d: %d bytes at 0x%x\n",
-			       regnum, size, base);
-#endif
+			/* TODO handle IO region */
 		}
 
 		pci_conf_write(f, bar, oldv);
 		f->reg_base[regnum] = base;
 		f->reg_size[regnum] = size;
-
-		if (size && !base)
-			printf("PCI device %02x:%02x.%d (%04x:%04x) "
-			       "may be misconfigured: "
-			       "region %d: base 0x%x, size %d\n",
-			       f->bus->busno, f->dev, f->func,
-			       PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id),
-			       regnum, base, size);
 	}
+
+	printf("PCI function %02x:%02x.%d (%04x:%04x) configured\n",
+		f->bus->busno, f->dev, f->func,
+		PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id));
+	return 0;
+}
+
+void
+pci_func_enable(struct pci_func *f, uint8_t flags)
+{
+
+	uint32_t v;
+	if (flags & PCI_MEM_ENABLE)
+		v |= PCI_COMMAND_MEM_ENABLE;
+	if (flags & PCI_IO_ENABLE)
+		v |= PCI_COMMAND_IO_ENABLE;
+
+	pci_conf_write(f, PCI_COMMAND_STATUS_REG,
+			  v | PCI_COMMAND_MASTER_ENABLE);
 
 	printf("PCI function %02x:%02x.%d (%04x:%04x) enabled\n",
 		f->bus->busno, f->dev, f->func,
 		PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id));
+}
+
+list_t
+pci_probe_device(pci_match_func match_func)
+{
+	list_t l = NULL;
+
+	list_t	n, head = &pci_func_list;
+	for (n = list_first(&pci_func_list); n != head;
+			    n = list_next(n)) {
+		struct pci_func *f;
+		f = list_entry(n, struct pci_func, link);
+		if (match_func(PCI_VENDOR(f->dev_id),
+				   PCI_PRODUCT(f->dev_id),
+				   f->dev_class)) {
+			list_insert(l, &f->link);
+		}
+	}
+	return l;
 }
 
 static int
@@ -173,28 +280,37 @@ pci_scan_bus(struct pci_bus *bus)
 
 	for (df.dev = 0; df.dev < 32; df.dev++) {
 		uint32_t bhlc = pci_conf_read(&df, PCI_BHLC_REG);
+		struct pci_func f;
 		if (PCI_HDRTYPE_TYPE(bhlc) > 1)	/* Unsupported or no device */
 			continue;
 
+		/* found a device */
 		totaldev++;
+		f = df;
 
-		struct pci_func f = df;
 		for (f.func = 0; f.func < (PCI_HDRTYPE_MULTIFN(bhlc) ? 8 : 1);
 				f.func++) {
-			struct pci_func af = f;
+			struct pci_func *af;
+			uint32_t dev_id;
+			uint32_t intr;
 
-			af.dev_id = pci_conf_read(&f, PCI_ID_REG);
-			if (PCI_VENDOR(af.dev_id) == 0xffff)
-				continue;
+			dev_id = pci_conf_read(&f, PCI_ID_REG);
+			if (PCI_VENDOR(dev_id) == 0xffff)
+				continue;	
 
-			uint32_t intr = pci_conf_read(&af, PCI_INTERRUPT_REG);
-			af.irq_line = PCI_INTERRUPT_LINE(intr);
-			af.dev_class = pci_conf_read(&af, PCI_CLASS_REG);
+			/* found a function */
+			af = kmem_alloc(sizeof(*af));
+			*af = f;
+			list_init(&af->link);
+			list_insert(&pci_func_list, &af->link);
+			af->dev_id = dev_id;
+
+			intr = pci_conf_read(af, PCI_INTERRUPT_REG);
+			af->irq_line = PCI_INTERRUPT_LINE(intr);
+			af->dev_class = pci_conf_read(af, PCI_CLASS_REG);
 #ifdef SHOW_PCI_VERBOSE_INFO
-			pci_print_func(&af);
+			pci_print_func(af);
 #endif
-			/*pci_attach(&af);*/
-			pci_func_enable(&af);
 		}
 	}
 
@@ -219,59 +335,3 @@ struct driver pci_driver = {
 	/* init */	pci_init,
 	/* shutdown */	NULL,
 };
-
-static paddr_t
-pci_allocate_address(size_t size) {
-	
-	pci_map_base += size;
-	return pci_map_base;
-}
-
-static void
-pci_insert_resource_map(struct pci_resource_map *map) {
-	list_init(&map->link);
-	list_insert(&pci_resource_list, &map->link);
-}
-
-struct pci_resource_map *
-pci_find_resource(char *name)
-{
-	list_t n, head = &pci_resource_list;
-	struct pci_resource_map *target;
-	for (n = list_first(head); n != head; n = list_next(n)) { 
-		target = list_entry(n, struct pci_resource_map, link);
-
-		if (strncmp(name, target->name, sizeof(target->name)) == 0)
-			return target;
-	}
-
-	return 0;
-}
-
-int
-pci_allocate_mmio_range(char *name, size_t size)
-{
-	struct pci_resource_map map;
-	map.size = size;
-	strncpy(map.name, name, sizeof(map.name));
-	map.type = PCI_RES_MEM;
-	map.start = pci_allocate_address(size);
-	if (map.start == 0)
-		return ENOMEM;
-
-	pci_insert_resource_map(&map);
-
-	return 0;
-}
-
-int
-pci_remove_resource(char *name)
-{
-	struct pci_resource_map *target;
-	target = pci_find_resource(name);
-	if (!target) return ENODEV;
-
-	list_remove(&target->link);
-
-	return 0;
-}

@@ -27,19 +27,29 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _DEV_PCI_H_
-#define _DEV_PCI_H_
+#ifndef _PCI_H_
+#define _PCI_H_
 
 #include <sys/types.h>
 
-typedef enum pci_resource_type {
-	PCI_RES_MEM,
-	PCI_RES_IO,
-	PCI_RES_IRQ,
-} pci_resource_t;
+struct pci_func;
+
+typedef int (pci_match_func)(uint16_t,/* vendor */
+			     uint16_t,/* device */
+			     uint32_t /* class  */);
+
+/* pci_func_enalbe() flags */
+#define	PCI_MEM_ENABLE	0x1
+#define PCI_IO_ENABLE	0x2
 
 __BEGIN_DECLS
+list_t pci_probe_device(pci_match_func);
+struct pci_func *to_pci_func(list_t);
+int pci_func_configure(struct pci_func *);
+void pci_func_enable(struct pci_func *, uint8_t);
+
+void pci_conf_write(struct pci_func *, uint32_t, uint32_t);
+uint32_t pci_conf_read(struct pci_func *, uint32_t);
 __END_DECLS
 
-
-#endif /* _DEV_PCI_H_ */
+#endif /* _PCI_H_ */

@@ -14,12 +14,13 @@ include $(CURDIR)/dev/base/Makefile.inc
 include $(CURDIR)/dev/block/Makefile.inc
 include $(CURDIR)/dev/cpufreq/Makefile.inc
 include $(CURDIR)/dev/dma/Makefile.inc
-include $(CURDIR)/dev/pci/Makefile.inc
 include $(CURDIR)/dev/input/Makefile.inc
 include $(CURDIR)/dev/misc/Makefile.inc
 include $(CURDIR)/dev/rtc/Makefile.inc
 include $(CURDIR)/dev/serial/Makefile.inc
 include $(CURDIR)/dev/video/Makefile.inc
+include $(CURDIR)/dev/pci/Makefile.inc
+include $(CURDIR)/dev/net/Makefile.inc
 
 include $(CURDIR)/lib/Makefile.inc
 -include $(CURDIR)/$(ARCH)/arch/Makefile.inc

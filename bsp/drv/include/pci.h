@@ -43,13 +43,18 @@ typedef int (pci_match_func)(uint16_t,/* vendor */
 #define PCI_IO_ENABLE	0x2
 
 __BEGIN_DECLS
-list_t pci_probe_device(pci_match_func);
-struct pci_func *to_pci_func(list_t);
-int pci_func_configure(struct pci_func *);
-void pci_func_enable(struct pci_func *, uint8_t);
+int	  pci_init(void);
 
-void pci_conf_write(struct pci_func *, uint32_t, uint32_t);
-uint32_t pci_conf_read(struct pci_func *, uint32_t);
+list_t	  pci_probe_device(pci_match_func);
+int	  pci_func_configure(struct pci_func *);
+void	  pci_func_enable(struct pci_func *, uint8_t);
+uint32_t  pci_func_get_reg_base(struct pci_func *, int);
+uint32_t  pci_func_get_reg_size(struct pci_func *, int);
+uint8_t	  pci_func_get_irqline(struct pci_func *);
+
+void	  pci_conf_write(struct pci_func *, uint32_t, uint32_t);
+uint32_t  pci_conf_read(struct pci_func *, uint32_t);
+struct pci_func *to_pci_func(list_t);
 __END_DECLS
 
 #endif /* _PCI_H_ */

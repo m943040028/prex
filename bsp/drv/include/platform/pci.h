@@ -27,40 +27,14 @@
  * SUCH DAMAGE.
  */
 
-/*
- * ppc4xx_pci.c - platform dependent configuration for ppc4xx pci<->plb bridge
- */
+#ifndef _PPC_PLATFORM_PCI_H
+#define _PPC_PLATFORM_PCI_H
 
-#define PCIC0_INTERNAL_BASE		(0xef480000)
+#include <sys/types.h>
 
-enum pcic0_internal_regs {
-	/* PLB Memory Map (PMM) registers 
-	   PLB addresses ->  PCI address */
-	PCIL0_PMM0LA	= PCIC0_INTERNAL_BASE + 0x0,
-	PCIL0_PMM0MA	= PCIC0_INTERNAL_BASE + 0x4,
-	PCIL0_PMM0PCILA	= PCIC0_INTERNAL_BASE + 0x8,
-	PCIL0_PMM0PCIHA	= PCIC0_INTERNAL_BASE + 0xc,
-	PCIL0_PMM1LA	= PCIC0_INTERNAL_BASE + 0x10,
-	PCIL0_PMM1MA	= PCIC0_INTERNAL_BASE + 0x14,
-	PCIL0_PMM1PCILA	= PCIC0_INTERNAL_BASE + 0x18,
-	PCIL0_PMM1PCIHA	= PCIC0_INTERNAL_BASE + 0x1c,
-	PCIL0_PMM2LA	= PCIC0_INTERNAL_BASE + 0x20,
-	PCIL0_PMM2MA	= PCIC0_INTERNAL_BASE + 0x24,
-	PCIL0_PMM2PCILA	= PCIC0_INTERNAL_BASE + 0x28,
-	PCIL0_PMM2PCIHA	= PCIC0_INTERNAL_BASE + 0x2c,
+__BEGIN_DECLS
+int platform_pci_init(void);
+int platform_pci_probe_irq(uint8_t irqline);
+__END_DECLS
 
-	/* PCI Target Map (PTM) registers
-	   PCI addresses -> PLB address */
-	PCIL0_PTM1MS	= PCIC0_INTERNAL_BASE + 0x30,
-	PCIL0_PTM1LA	= PCIC0_INTERNAL_BASE + 0x34,
-	PCIL0_PTM2MS	= PCIC0_INTERNAL_BASE + 0x38,
-	PCIL0_PTM2LA	= PCIC0_INTERNAL_BASE + 0x3c,
-	PCI_REG_SIZE	= PCIC0_INTERNAL_BASE + 0x40,
-};
-
-int
-platform_pci_init(void)
-{
-	/* TODO: complete this function */
-	return 0;
-}
+#endif

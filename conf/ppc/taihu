@@ -30,6 +30,7 @@ options 	FS_THREADS=4	# Number of file system threads
 # Platform settings
 #
 options		PPC_40x		# Processor type
+options		AMCC_405EP	# 405EP implemented by AMCC
 options 	MMU		# Memory management unit
 options 	CACHE		# Cache memory
 options		NTLB_ENTS=64	# How many TLB entries
@@ -38,6 +39,7 @@ options		NTLB_ENTS=64	# How many TLB entries
 options 	BOOTDISK	# Disk for /boot directory
 options		NUICS=1		# How Many Universal Interrupt Controller We have
 options		PPC405_BOOTROM	# Build boot rom (for Qemu)
+options		PCI		# PCI support
 
 #
 # General setup
@@ -86,7 +88,6 @@ device		ns16550	    	# NS16550 serial port (P:serial)
 device		null		# NULL device
 device		zero		# Zero device
 device		ramdisk		# RAM disk
-device		pci		# PCI support
 device		e1000		# E1000 Giga-ethernet support
 
 #
@@ -96,6 +97,7 @@ options		NS16550_BASE=0xef600300
 options		NS16550_IRQ=0
 options		PCI_CONFIG_BASE=0xeec00000
 options		PCI_MMIO_ALLOC_BASE=0x40000000
+options		PCI_MMIO_ALLOC_SIZE=0x8000000
 
 #
 # Command box

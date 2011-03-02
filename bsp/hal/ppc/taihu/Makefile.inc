@@ -9,7 +9,6 @@ SRCS:=		ppc/arch/locore_40x.S \
 		ppc/arch/dcr-low.S \
 		ppc/platform/40x/interrupt.c \
 		ppc/platform/40x/io.c \
-		ppc/platform/40x/ppc4xx_pci.c \
 		ppc/taihu/machdep.c
 
 ifeq ($(DEBUG),1)

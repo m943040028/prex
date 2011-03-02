@@ -34,6 +34,9 @@
 #include <driver.h>
 #include <cons.h>
 #include <kd.h>
+#ifdef CONFIG_PCI
+#include <pci.h>
+#endif
 
 #ifdef DEBUG
 #define DPRINTF(a) printf a
@@ -58,6 +61,10 @@ driver_main(dkifn_t *dkient)
 	kd_init();
 #endif
 	calibrate_delay();
+
+#ifdef CONFIG_PCI
+	pci_init();
+#endif
 
 	driver_probe();
 	driver_init();

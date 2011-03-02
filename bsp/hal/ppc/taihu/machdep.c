@@ -42,8 +42,6 @@
 #include <cpufunc.h>
 #include <locore.h>
 
-#include <platform/pci.h>
-
 extern void *exception_vector;
 extern void *exception_vector_end;
 
@@ -64,6 +62,14 @@ struct mmumap mmumap_table[] =
 	 * I/O space
 	 */
 	{ 0xee000000, 0xee000000, 0x2000000, VMT_IO },
+
+#ifdef CONFIG_PCI
+	/*
+	 * PCI MMIO space
+	 */
+	{ CONFIG_PCI_MMIO_ALLOC_BASE, CONFIG_PCI_MMIO_ALLOC_BASE,
+	  CONFIG_PCI_MMIO_ALLOC_SIZE, VMT_IO },
+#endif
 
 	{ 0,0,0,0 }
 };
@@ -154,10 +160,4 @@ machine_startup(void)
 	 */
 	mmu_init(mmumap_table);
 #endif
-
-	/*
-	 * Initialize PCI
-	 */
-	if (platform_pci_init() < 0)
-		panic("Unable to initial PCI\n");
 }

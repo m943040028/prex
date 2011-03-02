@@ -36,6 +36,7 @@
 #include <sys/list.h>
 #include <sys/endian.h>
 #include <driver.h>
+#include <platform/pci.h>
 #include <pci.h>
 #include "pcireg.h"
 
@@ -87,13 +88,29 @@ struct pci_bus {
 	uint32_t busno;
 };
 
-
-static struct list pci_resource_list = LIST_INIT(pci_resource_list);
 static struct list pci_func_list = LIST_INIT(pci_func_list);
 static paddr_t pci_map_base = CONFIG_PCI_MMIO_ALLOC_BASE;
 
 struct pci_func *to_pci_func(list_t list) {
 	return list_entry(list, struct pci_func, link);
+}
+
+uint32_t __inline
+pci_func_get_reg_base(struct pci_func *f, int regnum)
+{
+	return f->reg_base[regnum];
+}
+
+uint32_t __inline
+pci_func_get_reg_size(struct pci_func *f, int regnum)
+{
+	return f->reg_size[regnum];
+}
+
+uint8_t __inline
+pci_func_get_irqline(struct pci_func *f)
+{
+	return f->irq_line;
 }
 
 static void
@@ -152,6 +169,17 @@ pci_print_func(struct pci_func *f)
 		f->irq_line);
 }
 
+static uint8_t
+pci_allocate_irqline(void)
+{
+	int irq;
+	for (irq = 0; irq < 0xff; irq++) {
+		if (platform_pci_probe_irq(irq))
+			return irq;
+	}
+	return irq;
+}
+
 static paddr_t
 pci_allocate_memory(size_t size) 
 {
@@ -175,10 +203,11 @@ pci_allocate_memory(size_t size)
 	aligned_addr = (pci_map_base+size-1) & ~(size-1);
 
 	pci_map_base = aligned_addr + size;
-	if (pci_map_base < aligned_addr)
+	if (pci_map_base > 
+	    CONFIG_PCI_MMIO_ALLOC_BASE + CONFIG_PCI_MMIO_ALLOC_SIZE)
 		return 0; /* address exhausted */
 
-	return pci_map_base;
+	return aligned_addr;
 }
 
 int
@@ -215,7 +244,7 @@ pci_func_configure(struct pci_func *f)
 				oldv = base;
 			}
 #ifdef SHOW_PCI_VERBOSE_INFO
-			printf("  mem region %d: %d bytes at 0x%x\n",
+			printf("allocated mem region %d: %d bytes at 0x%x\n",
 			       regnum, size, base);
 #endif
 		} else {
@@ -226,6 +255,8 @@ pci_func_configure(struct pci_func *f)
 		f->reg_base[regnum] = base;
 		f->reg_size[regnum] = size;
 	}
+	f->irq_line = pci_allocate_irqline();
+	pci_conf_write(f, PCI_INTERRUPT_REG, PCI_INTERRUPT_LINE(f->irq_line));
 
 	printf("PCI function %02x:%02x.%d (%04x:%04x) configured\n",
 		f->bus->busno, f->dev, f->func,
@@ -255,16 +286,18 @@ list_t
 pci_probe_device(pci_match_func match_func)
 {
 	list_t l = NULL;
-
 	list_t	n, head = &pci_func_list;
 	for (n = list_first(&pci_func_list); n != head;
 			    n = list_next(n)) {
 		struct pci_func *f;
 		f = list_entry(n, struct pci_func, link);
 		if (match_func(PCI_VENDOR(f->dev_id),
-				   PCI_PRODUCT(f->dev_id),
-				   f->dev_class)) {
-			list_insert(l, &f->link);
+			       PCI_PRODUCT(f->dev_id),
+			       f->dev_class)) {
+			if (!l)
+				l = &f->link;
+			else
+				list_insert(l, &f->link);
 		}
 	}
 	return l;
@@ -317,21 +350,14 @@ pci_scan_bus(struct pci_bus *bus)
 	return totaldev;
 }
 
-static int
-pci_init(struct driver *self)
+int
+pci_init(void)
 {
 	static struct pci_bus root_bus;
 	memset(&root_bus, 0, sizeof(root_bus));
 
+	if (platform_pci_init() < 0)
+		panic("Unable to initial PCI\n");
+
 	return pci_scan_bus(&root_bus);
 }
-
-struct driver pci_driver = {
-	/* name */	"pci",
-	/* devsops */	NULL,
-	/* devsz */	0,
-	/* flags */	0,
-	/* probe */	NULL,
-	/* init */	pci_init,
-	/* shutdown */	NULL,
-};

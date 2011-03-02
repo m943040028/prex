@@ -40,8 +40,7 @@
 #include <pci.h>
 #include "pcireg.h"
 
-#define SHOW_PCI_VERBOSE_INFO	1
-#define DEBUG_PCI		1
+/* #define SHOW_PCI_VERBOSE_INFO	1 */
 
 #if BYTE_ORDER == BIG_ENDIAN
 uint32_t host_to_pci(uint32_t x)
@@ -144,6 +143,7 @@ pci_conf_write(struct pci_func *f, uint32_t off, uint32_t v)
 	bus_write_32(PCI_CFG_DATA, host_to_pci(v));
 }
 
+#ifdef SHOW_PCI_VERBOSE_INFO
 static const char *pci_class[] = 
 {
 	[0x0] = "Unknown",
@@ -162,12 +162,13 @@ pci_print_func(struct pci_func *f)
 	if (PCI_CLASS(f->dev_class) < sizeof(pci_class) / sizeof(pci_class[0]))
 		class = pci_class[PCI_CLASS(f->dev_class)];
 
-	printf("PCI: %02x:%02x.%d: %04x:%04x: class: %x.%x (%s) irq: %d\n",
+	printf("pci: %02x:%02x.%d: %04x:%04x: class: %x.%x (%s) irq: %d\n",
 		f->bus->busno, f->dev, f->func,
 		PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id),
 		PCI_CLASS(f->dev_class), PCI_SUBCLASS(f->dev_class), class,
 		f->irq_line);
 }
+#endif
 
 static uint8_t
 pci_allocate_irqline(void)
@@ -244,7 +245,7 @@ pci_func_configure(struct pci_func *f)
 				oldv = base;
 			}
 #ifdef SHOW_PCI_VERBOSE_INFO
-			printf("allocated mem region %d: %d bytes at 0x%x\n",
+			printf("pci: allocated mem region %d: %d bytes at 0x%x\n",
 			       regnum, size, base);
 #endif
 		} else {
@@ -258,7 +259,7 @@ pci_func_configure(struct pci_func *f)
 	f->irq_line = pci_allocate_irqline();
 	pci_conf_write(f, PCI_INTERRUPT_REG, PCI_INTERRUPT_LINE(f->irq_line));
 
-	printf("PCI function %02x:%02x.%d (%04x:%04x) configured\n",
+	printf("pci: function %02x:%02x.%d (%04x:%04x) configured\n",
 		f->bus->busno, f->dev, f->func,
 		PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id));
 	return 0;
@@ -277,7 +278,7 @@ pci_func_enable(struct pci_func *f, uint8_t flags)
 	pci_conf_write(f, PCI_COMMAND_STATUS_REG,
 			  v | PCI_COMMAND_MASTER_ENABLE);
 
-	printf("PCI function %02x:%02x.%d (%04x:%04x) enabled\n",
+	printf("pci: function %02x:%02x.%d (%04x:%04x) enabled\n",
 		f->bus->busno, f->dev, f->func,
 		PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id));
 }
@@ -357,7 +358,7 @@ pci_init(void)
 	memset(&root_bus, 0, sizeof(root_bus));
 
 	if (platform_pci_init() < 0)
-		panic("Unable to initial PCI\n");
+		panic("pci: unable to initial PCI\n");
 
 	return pci_scan_bus(&root_bus);
 }

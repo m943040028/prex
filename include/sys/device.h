@@ -43,6 +43,7 @@
 #define D_REM		0x00000004	/* removable device */
 #define D_PROT		0x00000008	/* protected device */
 #define D_TTY		0x00000010	/* tty device */
+#define D_NET		0x00000020	/* network device */
 
 
 #ifdef KERNEL

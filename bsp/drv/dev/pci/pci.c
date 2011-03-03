@@ -61,6 +61,10 @@ uint32_t pci_to_host(uint32_t x)
 #define pci_to_host(v)	(v)
 #endif
 
+/* forward declartion */
+uint32_t pci_conf_read(struct pci_func *f, uint32_t off);
+void pci_conf_write(struct pci_func *f, uint32_t off, uint32_t v);
+
 enum pci_config_space {
 	PCI_CFG_ADDR	= CONFIG_PCI_CONFIG_BASE + 0x0,
 	PCI_CFG_DATA	= CONFIG_PCI_CONFIG_BASE + 0x4,
@@ -90,28 +94,6 @@ struct pci_bus {
 static struct list pci_func_list = LIST_INIT(pci_func_list);
 static paddr_t pci_map_base = CONFIG_PCI_MMIO_ALLOC_BASE;
 
-struct pci_func *to_pci_func(list_t list) {
-	return list_entry(list, struct pci_func, link);
-}
-
-uint32_t __inline
-pci_func_get_reg_base(struct pci_func *f, int regnum)
-{
-	return f->reg_base[regnum];
-}
-
-uint32_t __inline
-pci_func_get_reg_size(struct pci_func *f, int regnum)
-{
-	return f->reg_size[regnum];
-}
-
-uint8_t __inline
-pci_func_get_irqline(struct pci_func *f)
-{
-	return f->irq_line;
-}
-
 static void
 pci_conf1_set_addr(uint32_t bus,
 		   uint32_t dev,
@@ -127,20 +109,6 @@ pci_conf1_set_addr(uint32_t bus,
 	uint32_t v = (1 << 31) |	/* config-space */
 		(bus << 16) | (dev << 11) | (func << 8) | (offset);
 	bus_write_32(PCI_CFG_ADDR, host_to_pci(v));
-}
-
-uint32_t
-pci_conf_read(struct pci_func *f, uint32_t off)
-{
-	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);
-	return pci_to_host(bus_read_32(PCI_CFG_DATA));
-}
-
-void
-pci_conf_write(struct pci_func *f, uint32_t off, uint32_t v)
-{
-	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);
-	bus_write_32(PCI_CFG_DATA, host_to_pci(v));
 }
 
 #ifdef SHOW_PCI_VERBOSE_INFO
@@ -211,6 +179,80 @@ pci_allocate_memory(size_t size)
 	return aligned_addr;
 }
 
+static int
+pci_scan_bus(struct pci_bus *bus)
+{
+	int totaldev = 0;
+	struct pci_func df;
+	memset(&df, 0, sizeof(df));
+	df.bus = bus;
+
+	for (df.dev = 0; df.dev < 32; df.dev++) {
+		uint32_t bhlc = pci_conf_read(&df, PCI_BHLC_REG);
+		struct pci_func f;
+		if (PCI_HDRTYPE_TYPE(bhlc) > 1)	/* Unsupported or no device */
+			continue;
+
+		/* found a device */
+		totaldev++;
+		f = df;
+
+		for (f.func = 0; f.func < (PCI_HDRTYPE_MULTIFN(bhlc) ? 8 : 1);
+				f.func++) {
+			struct pci_func *af;
+			uint32_t dev_id;
+			uint32_t intr;
+
+			dev_id = pci_conf_read(&f, PCI_ID_REG);
+			if (PCI_VENDOR(dev_id) == 0xffff)
+				continue;	
+
+			/* found a function */
+			af = kmem_alloc(sizeof(*af));
+			*af = f;
+			list_init(&af->link);
+			list_insert(&pci_func_list, &af->link);
+			af->dev_id = dev_id;
+
+			intr = pci_conf_read(af, PCI_INTERRUPT_REG);
+			af->irq_line = PCI_INTERRUPT_LINE(intr);
+			af->dev_class = pci_conf_read(af, PCI_CLASS_REG);
+#ifdef SHOW_PCI_VERBOSE_INFO
+			pci_print_func(af);
+#endif
+		}
+	}
+
+	return totaldev;
+}
+
+/* Exported interface */
+int
+pci_init(void)
+{
+	static struct pci_bus root_bus;
+	memset(&root_bus, 0, sizeof(root_bus));
+
+	if (platform_pci_init() < 0)
+		panic("pci: unable to initial PCI\n");
+
+	return pci_scan_bus(&root_bus);
+}
+
+uint32_t
+pci_conf_read(struct pci_func *f, uint32_t off)
+{
+	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);
+	return pci_to_host(bus_read_32(PCI_CFG_DATA));
+}
+
+void
+pci_conf_write(struct pci_func *f, uint32_t off, uint32_t v)
+{
+	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);
+	bus_write_32(PCI_CFG_DATA, host_to_pci(v));
+}
+
 int
 pci_func_configure(struct pci_func *f)
 {
@@ -246,10 +288,12 @@ pci_func_configure(struct pci_func *f)
 			}
 #ifdef SHOW_PCI_VERBOSE_INFO
 			printf("pci: allocated mem region %d: %d bytes at 0x%x\n",
-			       regnum, size, base);
+				regnum, size, base);
 #endif
 		} else {
+#ifdef CONFIG_ARCH_HAS_IO_SPACE
 			/* TODO handle IO region */
+#endif
 		}
 
 		pci_conf_write(f, bar, oldv);
@@ -304,61 +348,24 @@ pci_probe_device(pci_match_func match_func)
 	return l;
 }
 
-static int
-pci_scan_bus(struct pci_bus *bus)
-{
-	int totaldev = 0;
-	struct pci_func df;
-	memset(&df, 0, sizeof(df));
-	df.bus = bus;
-
-	for (df.dev = 0; df.dev < 32; df.dev++) {
-		uint32_t bhlc = pci_conf_read(&df, PCI_BHLC_REG);
-		struct pci_func f;
-		if (PCI_HDRTYPE_TYPE(bhlc) > 1)	/* Unsupported or no device */
-			continue;
-
-		/* found a device */
-		totaldev++;
-		f = df;
-
-		for (f.func = 0; f.func < (PCI_HDRTYPE_MULTIFN(bhlc) ? 8 : 1);
-				f.func++) {
-			struct pci_func *af;
-			uint32_t dev_id;
-			uint32_t intr;
-
-			dev_id = pci_conf_read(&f, PCI_ID_REG);
-			if (PCI_VENDOR(dev_id) == 0xffff)
-				continue;	
-
-			/* found a function */
-			af = kmem_alloc(sizeof(*af));
-			*af = f;
-			list_init(&af->link);
-			list_insert(&pci_func_list, &af->link);
-			af->dev_id = dev_id;
-
-			intr = pci_conf_read(af, PCI_INTERRUPT_REG);
-			af->irq_line = PCI_INTERRUPT_LINE(intr);
-			af->dev_class = pci_conf_read(af, PCI_CLASS_REG);
-#ifdef SHOW_PCI_VERBOSE_INFO
-			pci_print_func(af);
-#endif
-		}
-	}
-
-	return totaldev;
+struct pci_func *to_pci_func(list_t list) {
+	return list_entry(list, struct pci_func, link);
 }
 
-int
-pci_init(void)
+uint32_t __inline
+pci_func_get_reg_base(struct pci_func *f, int regnum)
 {
-	static struct pci_bus root_bus;
-	memset(&root_bus, 0, sizeof(root_bus));
+	return f->reg_base[regnum];
+}
 
-	if (platform_pci_init() < 0)
-		panic("pci: unable to initial PCI\n");
+uint32_t __inline
+pci_func_get_reg_size(struct pci_func *f, int regnum)
+{
+	return f->reg_size[regnum];
+}
 
-	return pci_scan_bus(&root_bus);
+uint8_t __inline
+pci_func_get_irqline(struct pci_func *f)
+{
+	return f->irq_line;
 }

@@ -11,12 +11,21 @@ int debugflags = DBGBIT(INFO);
 #endif
 
 struct e1000_hw {
-	device_t	dev;		/* device object */
-	irq_t		irq;		/* irq handle */
-
 	uint32_t	io_base;
 	uint32_t	io_size;
 	uint8_t		irqline; 
+};
+
+struct e1000_adaptor {
+	device_t	dev;		/* device object */
+	irq_t		irq;		/* irq handle */
+
+	int		num_tx_queues;
+	struct e1000_tx_ring *tx_ring;
+	int		num_rx_queues;
+	struct e1000_rx_ring *rx_ring;
+
+	struct e1000_hw	hw;
 };
 
 static list_t pci_device_list; /* list of pci devices probed */
@@ -36,12 +45,13 @@ e1000_hw_reset(struct e1000_hw *hw)
 	 */
 	ew32(RCTL, 0);
 	ew32(TCTL, E1000_TCTL_PSP);
-	er32(STATUS);
+	er32(STATUS); /* wait for complete */
 
         /* Delay to allow any outstanding PCI transactions to complete before
 	 * resetting the device
 	 */
 	delay_usec(10000);
+	ctrl = er32(CTRL);
 
 	/* reset phy */
 	ew32(CTRL, (ctrl | E1000_CTRL_PHY_RST));
@@ -54,6 +64,12 @@ e1000_hw_reset(struct e1000_hw *hw)
 	 */
 	ew32(CTRL, (ctrl | E1000_CTRL_RST));
 
+	/* After MAC reset, force reload of EEPROM to restore power-on settings to
+	 * device.  Later controllers reload the EEPROM automatically, so just wait
+	 * for reload to complete.
+	 */
+	delay_usec(20000);
+
 	/* Clear interrupt mask to stop board from generating interrupts */
 	ew32(IMC, 0xffffffff);
 
@@ -61,6 +77,32 @@ e1000_hw_reset(struct e1000_hw *hw)
 	icr = er32(ICR);
 
 	return 0;
+}
+
+static void e1000_clean_tx_ring(struct e1000_adaptor *adapter,
+				struct e1000_tx_ring *tx_ring)
+{
+}
+
+static void e1000_clean_rx_ring(struct e1000_adaptor *adapter,
+				struct e1000_rx_ring *rx_ring)
+{
+}
+
+static void e1000_clean_all_tx_rings(struct e1000_adaptor *adaptor)
+{
+	int i;
+
+	for (i = 0; i < adaptor->num_tx_queues; i++)
+		e1000_clean_tx_ring(adaptor, &adaptor->tx_ring[i]);
+}
+
+static void e1000_clean_all_rx_rings(struct e1000_adaptor *adaptor)
+{
+	int i;
+
+	for (i = 0; i < adaptor->num_rx_queues; i++)
+		e1000_clean_rx_ring(adaptor, &adaptor->rx_ring[i]);
 }
 
 int e1000_match_func(uint16_t vendor, uint16_t device, uint32_t class)
@@ -77,6 +119,7 @@ e1000_init(struct driver *self)
 {
 	struct pci_func *f;
 	device_t dev;
+	struct e1000_adaptor *adaptor;
 	struct e1000_hw *hw;
 
 	f = to_pci_func(pci_device_list);
@@ -85,21 +128,27 @@ e1000_init(struct driver *self)
 	}
 
 	dev = device_create(self, "net0", D_NET|D_PROT);
-	hw = device_private(dev);
-	hw->dev = dev;
+	adaptor = device_private(dev);
+	adaptor->dev = dev;
+	hw = &adaptor->hw;
 
 	hw->io_base = pci_func_get_reg_base(f, 0);
 	hw->io_size = pci_func_get_reg_size(f, 0);
 	hw->irqline = pci_func_get_irqline(f);
+
 	DPRINTF(INFO, "mmio_base=%08x, size=%08x\n",
 		hw->io_base, hw->io_size);
 	DPRINTF(INFO, "irqline=%d\n", hw->irqline);
+
 	pci_func_enable(f, PCI_MEM_ENABLE);
 
 	if (e1000_hw_reset(hw) < 0) {
 		DPRINTF(INFO, "cannot reset hardware\n");
 		return EIO;
 	}
+
+	e1000_clean_all_tx_rings(adaptor);
+	e1000_clean_all_rx_rings(adaptor);
 
 	return 0;
 }
@@ -117,11 +166,11 @@ e1000_probe(struct driver *self)
 }
 
 struct driver e1000_driver = {
-	/* name */      "e1000",
-	/* devsops */   NULL,
-	/* devsz */     sizeof(struct e1000_hw),
-	/* flags */     0,
-	/* probe */     e1000_probe,
-	/* init */      e1000_init,
-	/* shutdown */  NULL,
+	/* name */	"e1000",
+	/* devsops */	NULL,
+	/* devsz */	sizeof(struct e1000_adaptor),
+	/* flags */	0,
+	/* probe */	e1000_probe,
+	/* init */	e1000_init,
+	/* shutdown */	NULL,
 };

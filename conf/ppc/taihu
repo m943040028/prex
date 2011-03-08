@@ -89,6 +89,7 @@ device		null		# NULL device
 device		zero		# Zero device
 device		ramdisk		# RAM disk
 device		e1000		# E1000 Giga-ethernet support
+device		net		# Network driver base
 
 #
 # Hardware configuations

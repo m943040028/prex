@@ -35,6 +35,8 @@
 #define _DKI_H
 
 #include <types.h>
+#include <machine/stdarg.h>
+#include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/dbgctl.h>
 #include <sys/bootinfo.h>
@@ -150,6 +152,7 @@ int	 sysinfo(int, void *);
 void	 panic(const char *);
 void	 printf(const char *, ...);
 void	 dbgctl(int, void *);
+int	 vsprintf(char *, const char *, va_list);
 __END_DECLS
 
 #endif /* !_DKI_H */

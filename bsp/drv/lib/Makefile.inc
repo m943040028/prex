@@ -4,6 +4,7 @@ SRCS+=		lib/dkient.S \
 		lib/assert.c \
 		lib/endian.c \
 		lib/string.c \
+		lib/sprintf.c \
 		lib/strtoul.c \
 		lib/ctype.c \
 		lib/delay.c \

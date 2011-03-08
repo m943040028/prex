@@ -1,5 +1,6 @@
 #include <driver.h>
 #include <pci.h>
+#include <net.h>
 
 #define	DEBUG_E1000	1
 
@@ -10,6 +11,10 @@
 int debugflags = DBGBIT(INFO);
 #endif
 
+static int e1000_probe(struct driver *self);
+static int e1000_init(struct driver *self);
+static int e1000_net_init(struct net_driver *self);
+
 struct e1000_hw {
 	uint32_t	io_base;
 	uint32_t	io_size;
@@ -17,7 +22,6 @@ struct e1000_hw {
 };
 
 struct e1000_adaptor {
-	device_t	dev;		/* device object */
 	irq_t		irq;		/* irq handle */
 
 	int		num_tx_queues;
@@ -29,6 +33,25 @@ struct e1000_adaptor {
 };
 
 static list_t pci_device_list; /* list of pci devices probed */
+
+struct driver e1000_driver = {
+	/* name */	"e1000",
+	/* devsops */	NULL,
+	/* devsz */	sizeof(struct e1000_adaptor),
+	/* flags */	0,
+	/* probe */	e1000_probe,
+	/* init */	e1000_init,
+	/* shutdown */	NULL,
+};
+
+static struct net_driver_operations e1000_ops = {
+	/* init */	e1000_net_init,
+};
+
+static struct net_driver e1000_net_driver = {
+	/* driver */	&e1000_driver,
+	/* ops */	&e1000_ops,
+};
 
 static int
 e1000_hw_reset(struct e1000_hw *hw)
@@ -115,10 +138,9 @@ int e1000_match_func(uint16_t vendor, uint16_t device, uint32_t class)
 }
 
 static int
-e1000_init(struct driver *self)
+e1000_net_init(struct net_driver *self)
 {
 	struct pci_func *f;
-	device_t dev;
 	struct e1000_adaptor *adaptor;
 	struct e1000_hw *hw;
 
@@ -127,9 +149,7 @@ e1000_init(struct driver *self)
 		DPRINTF(INFO, "cannot configure PCI interface\n");
 	}
 
-	dev = device_create(self, "net0", D_NET|D_PROT);
-	adaptor = device_private(dev);
-	adaptor->dev = dev;
+	adaptor = net_driver_private(self);
 	hw = &adaptor->hw;
 
 	hw->io_base = pci_func_get_reg_base(f, 0);
@@ -154,6 +174,12 @@ e1000_init(struct driver *self)
 }
 
 static int
+e1000_init(struct driver *init)
+{
+	return 0;
+}
+
+static int
 e1000_probe(struct driver *self)
 {
 	pci_device_list = pci_probe_device(e1000_match_func);
@@ -161,16 +187,8 @@ e1000_probe(struct driver *self)
 		return ENODEV;
 	}
 	DPRINTF(INFO, "probed eepro1000 NIC\n");
+	register_net_driver(&e1000_net_driver);
 
 	return 0;
 }
 
-struct driver e1000_driver = {
-	/* name */	"e1000",
-	/* devsops */	NULL,
-	/* devsz */	sizeof(struct e1000_adaptor),
-	/* flags */	0,
-	/* probe */	e1000_probe,
-	/* init */	e1000_init,
-	/* shutdown */	NULL,
-};

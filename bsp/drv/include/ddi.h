@@ -106,6 +106,8 @@ int	 isdigit(int c);
 int	 isxdigit(int c);
 int	 isprint(int c);
 
+int	 sprintf(char *, const char*, ...);
+
 #ifdef DEBUG
 void	 assert(const char *, int, const char *);
 #endif

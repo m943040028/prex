@@ -25,8 +25,8 @@ struct e1000_adaptor {
 	irq_t		irq;		/* irq handle */
 
 	int		num_tx_queues;
-	struct e1000_tx_ring *tx_ring;
 	int		num_rx_queues;
+	struct e1000_tx_ring *tx_ring;
 	struct e1000_rx_ring *rx_ring;
 
 	struct e1000_hw	hw;

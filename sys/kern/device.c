@@ -105,14 +105,15 @@ static const dkifn_t dkient[] = {
 	/* 31 */ DKIENT(machine_bootinfo),
 	/* 32 */ DKIENT(machine_powerdown),
 	/* 33 */ DKIENT(sysinfo),
+	/* 34 */ DKIENT(vsprintf),
 #ifdef DEBUG
-	/* 34 */ DKIENT(panic),
-	/* 35 */ DKIENT(printf),
-	/* 36 */ DKIENT(dbgctl),
+	/* 35 */ DKIENT(panic),
+	/* 36 */ DKIENT(printf),
+	/* 37 */ DKIENT(dbgctl),
 #else
-	/* 34 */ DKIENT(machine_abort),
-	/* 35 */ DKIENT(sys_nosys),
+	/* 35 */ DKIENT(machine_abort),
 	/* 36 */ DKIENT(sys_nosys),
+	/* 37 */ DKIENT(sys_nosys),
 #endif
 };
 

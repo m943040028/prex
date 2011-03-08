@@ -48,19 +48,19 @@ net_init(struct driver *self)
 	list_t  n, head = &net_driver_list;
 	for (n = list_first(&net_driver_list); n != head;
 	     n = list_next(n)) {
-		int ret;
+
+		char name[20];
 		nd = list_entry(n, struct net_driver, link);
 
-		ret = nd->ops->init(nd);
-		if (!ret) {
-			char name[20];
-			sprintf(name, "net%d", id);
-			nd->id = id;
-			nd->nc = nc;
-			nc->net_devs[id] = 
-				device_create(nd->driver, name, D_NET|D_PROT);
-			id++;
-		}
+		/*sprintf(name, "net%d", id);*/
+		nd->id = id;
+		nd->nc = nc;
+		nc->net_devs[id] = 
+			device_create(nd->driver, name, D_NET|D_PROT);
+
+		nd->ops->init(nd);
+		id++;
+
 		if (id >= MAX_NET_DEVS)
 			break;
 	}

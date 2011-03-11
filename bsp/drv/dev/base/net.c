@@ -4,6 +4,15 @@
 
 #define MAX_NET_DEVS	4
 
+static int net_open(device_t, int);
+static int net_close(device_t);
+static int net_read(device_t, char *, size_t *, int);
+static int net_write(device_t, char *, size_t *, int);
+static int net_ioctl(device_t, u_long, void *);
+static int net_devctl(device_t, u_long, void *);
+static int net_init(struct driver *);
+
+
 static struct list net_driver_list = LIST_INIT(net_driver_list);
 
 struct net_softc {
@@ -11,8 +20,27 @@ struct net_softc {
 	device_t	net_devs[MAX_NET_DEVS];
 };
 
+static struct devops net_devops = {
+	/* open */	net_open,
+	/* close */	net_close,
+	/* read */	net_read,
+	/* write */	net_write,
+	/* ioctl */	net_ioctl,
+	/* devctl */	net_devctl,
+};
+
+struct driver net_driver = {
+	/* name */	"net",
+	/* devsops */	&net_devops,
+	/* devsz */	sizeof(struct net_softc),
+	/* flags */	0,
+	/* probe */	NULL,
+	/* init */	net_init,
+	/* shutdown */	NULL,
+};
+
 int
-register_net_driver(struct net_driver *driver)
+net_driver_attach(struct net_driver *driver)
 {
 	list_init(&driver->link);
 	list_insert(&net_driver_list, &driver->link);
@@ -71,12 +99,32 @@ net_init(struct driver *self)
 	return 0;
 }
 
-struct driver net_driver = {
-	/* name */	"net",
-	/* devsops */	NULL,
-	/* devsz */	sizeof(struct net_softc),
-	/* flags */	0,
-	/* probe */	NULL,
-	/* init */	net_init,
-	/* shutdown */	NULL,
-};
+static int net_open(device_t dev, int mode)
+{
+	return 0;
+}
+
+static int net_close(device_t dev)
+{
+	return 0;
+}
+
+static int net_read(device_t dev, char *buf, size_t *len, int blkno)
+{
+	return 0;
+}
+
+static int net_write(device_t dev, char *buf, size_t *len, int blkno)
+{
+	return 0;
+}
+
+static int net_ioctl(device_t dev, u_long cmd, void *args)
+{
+	return 0;
+}
+
+static int net_devctl(device_t dev, u_long cmd, void *args)
+{
+	return 0;
+}

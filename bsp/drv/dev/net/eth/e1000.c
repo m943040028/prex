@@ -187,7 +187,7 @@ e1000_probe(struct driver *self)
 		return ENODEV;
 	}
 	DPRINTF(INFO, "probed eepro1000 NIC\n");
-	register_net_driver(&e1000_net_driver);
+	net_driver_attach(&e1000_net_driver);
 
 	return 0;
 }

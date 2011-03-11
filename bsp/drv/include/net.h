@@ -14,13 +14,20 @@ struct net_driver {
 	struct net_softc *nc;
 };
 
+struct packet {
+	void *bufptr;
+	struct list link;
+};
+
 struct net_driver_operations {
 	int	(*init)(struct net_driver *);
+	int	(*enqueue)(struct net_driver *, struct packet *);
+	int	(*dequeue)(struct net_driver *, struct packet *);
 };
 
 
 __BEGIN_DECLS
-int	register_net_driver(struct net_driver *driver);
+int	net_driver_attach(struct net_driver *driver);
 void*	net_driver_private(struct net_driver *driver);
 __END_DECLS
 

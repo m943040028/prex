@@ -6,7 +6,9 @@ SRCS+=			dev/base/main.c \
 SRCS-$(CONFIG_PM)+=	dev/base/pm.c
 SRCS-$(CONFIG_CONS)+=	dev/base/cons.c
 SRCS-$(CONFIG_WSCONS)+=	dev/base/wscons.c
-SRCS-$(CONFIG_NET)+=	dev/base/net.c
+
+SRCS-$(CONFIG_NET)+=	dev/base/net/net.c \
+			dev/base/net/dq.c
 
 ifeq ($(DEBUG),1)
 SRCS-$(CONFIG_KD)+=	dev/base/kd.c

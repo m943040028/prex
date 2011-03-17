@@ -107,6 +107,17 @@ struct __timeval {
 	long	tv_usec;	/* and microseconds */
 };
 
+/*
+ * Net coordinator I/O control code
+ */
+#define DQ_REQUEST_BUF		_IOR('D', 0, struct datagram_buffer_req)
+
+struct datagram_buffer_req {
+	uint8_t	nr_buf;
+	uint8_t	buf_pages;
+	uint8_t	buf_align;
+};
+
 __BEGIN_DECLS
 int	ioctl(int, unsigned long, ...);
 __END_DECLS

@@ -153,7 +153,8 @@ static paddr_t
 pci_allocate_memory(size_t size) 
 {
 
-	/* Calculate address we will assign the device.
+	/*
+	 * Calculate address we will assign the device.
 	 * This can be made more clever, specifically:
 	 *  1) The lowest 1MB should be reserved for 
 	 *     devices with 1M memory type.
@@ -164,7 +165,6 @@ pci_allocate_memory(size_t size)
 	 *       low 4GB space will become full.
 	 *  3) A bitmap can be used to avoid fragmentation.
 	 *     : Again, unlikely to be necessary.
-	 *
 	 */
 	paddr_t aligned_addr;
 

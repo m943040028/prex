@@ -24,13 +24,3 @@ DRPINTF(TRACE, "Leaving %s(), ret=%d\n",  __func__);
 
 #define ew32(reg, value) \
 	(bus_write_32(hw->io_base + E1000_##reg, (value)))
-
-struct e1000_tx_ring {
-	/* pointer to the descriptor ring memory */
-	void *desc;
-};
-
-struct e1000_rx_ring {
-	/* pointer to the descriptor ring memory */
-	void *desc;
-};

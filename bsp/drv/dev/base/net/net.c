@@ -2,6 +2,8 @@
 #include <net.h>
 #include <sys/list.h>
 
+#include "dq.h"
+
 #define MAX_NET_DEVS	4
 
 static int net_open(device_t, int);
@@ -23,8 +25,8 @@ struct net_softc {
 static struct devops net_devops = {
 	/* open */	net_open,
 	/* close */	net_close,
-	/* read */	net_read,
-	/* write */	net_write,
+	/* read */	no_read,
+	/* write */	no_write,
 	/* ioctl */	net_ioctl,
 	/* devctl */	net_devctl,
 };
@@ -38,6 +40,13 @@ struct driver net_driver = {
 	/* init */	net_init,
 	/* shutdown */	NULL,
 };
+
+struct datagram_queue_operations {
+        /* request_buf */	dq_request_buf,
+        /* release_buf */	dq_release_buf,
+        /* queue_buf */		dq_queue_buf,
+        /* dequeue_buf */	dq_dequeue_buf,
+} dq_ops;
 
 int
 net_driver_attach(struct net_driver *driver)
@@ -55,6 +64,11 @@ net_driver_private(struct net_driver *driver)
 	nc = driver->nc;
 	dev = nc->net_devs[driver->id];
 	return device_private(dev);
+}
+
+int
+net_driver_set_dbuf_state(datagram_buffer_t dbuf, dq_state_t)
+{
 }
 
 static int
@@ -83,8 +97,8 @@ net_init(struct driver *self)
 		sprintf(name, "net%d", id);
 		nd->id = id;
 		nd->nc = nc;
-		nc->net_devs[id] = 
-			device_create(nd->driver, name, D_NET|D_PROT);
+		nc->net_devs[id] = device_create(nd->driver,
+						 name, D_NET|D_PROT);
 
 		ret = nd->ops->init(nd);
 		if (!ret) {
@@ -105,16 +119,6 @@ static int net_open(device_t dev, int mode)
 }
 
 static int net_close(device_t dev)
-{
-	return 0;
-}
-
-static int net_read(device_t dev, char *buf, size_t *len, int blkno)
-{
-	return 0;
-}
-
-static int net_write(device_t dev, char *buf, size_t *len, int blkno)
 {
 	return 0;
 }

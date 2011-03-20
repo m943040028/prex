@@ -11,6 +11,12 @@
 int debugflags = DBGBIT(INFO);
 #endif
 
+/* forward declaration */
+static int e1000_alloc_iodesc(struct e1000_adaptor *);
+static int e1000_isr(void *);
+static int e1000_ist(void *);
+static void e1000_fill_rx_buffer(struct e1000_adaptor *);
+
 /* driver layer operations */
 static int e1000_probe(struct driver *);
 static int e1000_init(struct driver *);
@@ -19,11 +25,7 @@ static int e1000_init(struct driver *);
 static int e1000_net_init(struct net_driver *);
 static int e1000_net_start(struct net_driver *);
 static int e1000_net_stop(struct net_driver *);
-static int e1000_init_buf(struct net_driver *, init_buf_req_t);
-static int e1000_alloc_queue(struct net_driver *, queue_req_t);
-static int e1000_release_queue(struct net_driver *, queue_type_t);
-static int e1000_push_buf(struct net_driver *, queue_type_t);
-static int e1000_pop_buf(struct net_driver *, queue_type_t);
+static int e1000_transmit(struct net_driver *, dbuf_t);
 
 struct e1000_hw {
 	uint32_t	io_base;
@@ -38,6 +40,10 @@ struct e1000_adaptor {
 	int		num_rx_queues;
 	struct e1000_tx_desc *tx_desc;
 	struct e1000_rx_desc *rx_desc;
+	dbuf_t		*rx_buf;
+	dbuf_t		*tx_buf;
+	int		rx_ptr;
+	int		tx_ptr;
 
 	struct e1000_hw	hw;
 };
@@ -48,9 +54,7 @@ static struct net_driver_operations e1000_ops = {
 	/* init */	e1000_net_init,
 	/* start */	e1000_net_start,
 	/* stop */	e1000_net_stop,
-	/* alloc_queue */ e1000_alloc_queue,
-	/* release_queue */ e1000_release_queue,
-	/* submit_buf */ e1000_submit_buf,
+	/* transmit */	e1000_transmit,
 };
 
 static struct net_driver e1000_net_driver = {
@@ -157,15 +161,130 @@ e1000_net_init(struct net_driver *self)
 		return EIO;
 	}
 
+	e1000_alloc_iodesc(adaptor);
+
 	adaptor->irq = irq_attach(hw->irqline, IPL_NET, 0,
 				  e1000_isr, e1000_ist, adaptor);
 
 	return 0;
 }
 
+static void
+e1000_link_changed(struct e1000_adaptor *adaptor)
+{
+	return 0;
+}
+
+/* load as many rx buffers as possible */
+static void
+e1000_fill_rx_buffer(struct e1000_adaptor *adaptor)
+{
+	int tail = sr(RDL);
+	int head = sr(RDH)
+
+	while (ENOMEM != dq_buf_request(dbuf) || tail != head)
+	{
+		desc[tail].buffer_addr = dq_buf_get_paddr(dbuf);
+		desc[tail].length = dq_buf_buf_length(dbuf);
+		adaptor->rx_bufs[tail] = dbuf;
+		if (++tail >= adaptor->num_rx_queue)
+			tail = 0;
+	}
+	sw(RDL, tail);
+}
+
+static int
+e1000_rx(struct e1000_adaptor *adaptor)
+{
+	dbuf_t rx_buf;
+	int head, rx_ptr;
+
+	head = sr(RDH);
+	rx_ptr = adaptor->rx_ptr;
+
+	while (rx_ptr < head)
+	{
+		rx_buf = adaptor->rx_bufs[rx_ptr];
+		dq_buf_add(rx_buf);
+
+		if (++rx_ptr >= adaptor->num_rx_queue)
+			rx_ptr = 0;
+	}
+
+	adaptor->rx_ptr = rx_ptr;
+
+	/* reload rx_buffer */
+	e1000_fill_rx_buffer(adaptor);
+	return 0;
+}
+
+static int
+e1000_release_tx_buffer(adaptor)
+{
+	dbuf_t tx_buf;
+	int head, tx_ptr;
+
+	head = sr(TDH);
+	while (tx_ptr < head)
+	{
+		tx_buf = adaptor->tx_bufs[tx_ptr];
+		dq_buf_release(tx_buf);
+
+		if (++tx_ptr >= adaptor->num_rx_queue)
+			tx_ptr = 0;
+	}
+
+	adaptor->tx_ptr = tx_ptr;
+}
+
+static int
+e1000_isr(void *args)
+{
+	struct e1000_adaptor *adaptor;
+	adaptor = args;
+
+	uint32_t cause;
+
+	/* Read the Interrupt Cause Read register. */
+	if ((cause = e1000_reg_read(e, E1000_REG_ICR)))
+	{   
+		if (cause & E1000_ICR_LSC)
+			e1000_link_changed(adaptor);
+
+		if (cause & (E1000_ICR_RXO | E1000_REG_ICR_RXT0))
+			e1000_rx(adaptor);
+
+		if ((cause & E1000_ICR_TXQE) ||
+				(cause & E1000_ICR_TXDW))
+			e1000_release_tx_buffer(adaptor);
+	}
+
+}
+
+static int
+e1000_ist(void *args)
+{
+	return 0;
+}
+
 static int 
 e1000_net_start(struct net_driver *self)
 {
+	struct e1000_adaptor *adaptor;
+	adaptor = net_driver_private(self);
+	u32 rctl, tctl;
+
+	e1000_fill_rx_buffer(adaptor);
+
+	/* start RX & TX engine */
+	rctl = sr(RCTL);
+	/* TODO: should depend on requested buffer size */
+	rctl | E1000_RCTL_EN | E1000_RCTL_BSEX | E1000_RCTL_SZ_4096;
+	sw(RCTL, rctl);
+	tctl = src(TCTL);
+	tctl |= E1000_TCTL_EN | E1000_TCTL_PSP;
+	sw(TCTL, tctl);
+
 	return 0;
 }
 
@@ -176,159 +295,96 @@ e1000_net_stop(struct net_driver *self)
 }
 
 static int
-e1000_alloc_queue(struct net_driver *self, queue_req_t req)
+e1000_alloc_iodesc(struct e1000_adaptor *adaptor)
 {
-	struct e1000_adaptor *adaptor;
-	adaptor = net_driver_private(self);
-	int i, nbufs = req->nbufs;
-	size_t desc_size;
-	datagram_buffer_t *bufs req->bufs;
+	size_t desc_size, buf_size;
+	struct e1000_tx_desc *desc;
+	struct e1000_rx_desc *desc;
+	dbuf_t dbuf;
 
-	if (req->type == TX_QUEUE) {
-		struct e1000_tx_desc *desc;
-		adaptor->num_tx_queues = nbufs;
+	adaptor->num_tx_queues = E1000_NUM_TX_QUEUE;
+	adaptor->num_rx_queues = E1000_NUM_RX_QUEUE;
 
-		/* allocate tx descriptors */
-		desc_size = sizeof(struct e1000_tx_desc) *
-				adaptor->num_tx_queues;
-		adaptor->tx_desc = kmem_alloc(desc_size);
-		memset(adaptor->tx_desc, 0, desc_size);
-		desc = adaptor->tx_desc;
+	/* allocate tx descriptors */
+	desc_size = sizeof(struct e1000_tx_desc) *
+		adaptor->num_tx_queues;
+	buf_size = sizeof(dbuf_t) * adaptor->num_tx_queues;
+	adaptor->tx_desc = kmem_alloc(desc_size);
+	memset(adaptor->tx_desc, 0, desc_size);
+	adaptor->tx_bufs = kmem_alloc(buf_size);
+	memset(adaptor->tx_bufs, 0 ,buf_size);
+	desc = adaptor->tx_desc;
 
-		/*
-		 * Setup the transmit ring registers.
-		 */
-		sw(TDBAL, adaptor->tx_desc);
-		sw(TDBAH, 0);
-		sw(TDLEN, rx_desc_size);
-		sw(TDH, 0); /* tx descriptor head */
-		sw(TDT, 0); /* tx descriptor tail */
+	/*
+	 * Setup the transmit ring registers.
+	 */
+	sw(TDBAL, adaptor->tx_desc);
+	sw(TDBAH, 0);
+	sw(TDLEN, rx_desc_size);
+	sw(TDH, 0); /* tx descriptor head */
+	sw(TDT, 0); /* tx descriptor tail */
+	adaptor->tx_ptr = 0;
 
-		for (i = 0; i < nbufs; i++)
-			desc[i].buffer_addr = dqbuf_get_paddr(bufs[i]);
+	/* allocate rx descriptors */
+	desc_size = sizeof(struct e1000_rx_desc) *
+		adaptor->num_rx_queues;
+	buf_size = sizeof(dbuf_t) * adaptor->num_rx_queues;
+	adaptor->rx_desc = kmem_alloc(desc_size);
+	memset(adaptor->rx_desc, 0, desc_size);
+	adaptor->rx_bufs = kmem_alloc(buf_size);
+	memset(adaptor->rx_bufs, 0 ,buf_size);
+	desc = adaptor->tx_desc;
 
-	} else if (req->type == RX_QUEUE) {
-		struct e1000_rx_desc *desc;
-		adaptor->num_rx_queues = nbufs;
-
-		/* allocate rx descriptors */
-		desc_size = sizeof(struct e1000_rx_desc) *
-				adaptor->num_rx_queues;
-		adaptor->rx_desc = kmem_alloc(desc_size);
-		memset(adaptor->rx_desc, 0, desc_size);
-		desc = adaptor->tx_desc;
-
-		adaptor->num_rx_queues = E1000_RXDESC_NR;
-		/*
-		 * Setup the receive ring registers.
-		 */
-		sw(RDBAL, adaptor->rx_desc);
-		sw(RDBAH, 0);
-		sw(RDLEN, tx_desc_size);
-		sw(RDH, 0); /* rx descriptor head */
-		sw(RDT, 0); /* rx descriptor tail */
-
-		for (i = 0; i < nbufs; i++)
-			desc[i].buffer_addr = dqbuf_get_paddr(bufs[i]);
-	} else
-		return EINVAL;
-
-	return 0;
-}
-
-static int
-e1000_release_queue(struct net_driver *self, queue_type_t type)
-{
-	struct e1000_adaptor *adaptor;
-	adaptor = net_driver_private(self);
-
-	switch (type) {
-	case TX_QUEUE:
-		kmem_free(adaptor->tx_desc);
-		break;
-	case RX_QUEUE:
-		kmem_free(adaptor->tx_desc);
-		break;
-	default:
-		return EINVAL;
-	}
+	/*
+	 * Setup the receive ring registers.
+	 */
+	sw(RDBAL, adaptor->rx_desc);
+	sw(RDBAH, 0);
+	sw(RDLEN, tx_desc_size);
+	sw(RDH, 0); /* rx descriptor head */
+	sw(RDT, 0); /* rx descriptor tail */
+	adaptor->rx_ptr = 0;
 
 	return 0;
 }
 
 /*
  * this method is called via net coordinator when
- * a READY buffer is ready for transmiision or an FREE
- * buffer is ready for receving.
+ * a READY buffer is ready for transmiision
  *
  * return ENOMEM if transmit buffer is full
  */
 static int
-e1000_push_buf(struct net_driver *self, queue_type_t type)
+e1000_transmit(struct net_driver *self, queue_type_t type)
 {
 	struct e1000_adaptor *adaptor;
 	adaptor = net_driver_private(self);
 	uint32_t head, tail;
 	struct e1000_tx_desc *desc;
-	dqbuf_state_t state;
 
-	state = dqbuf_get_state(buf);
+	head = sr(TDH);
+	tail = sr(TDL);
 
-	switch (type) 
-	{
-	case QUEUE_RX: { /* a ready buffer is queued for transmition */
-		head = sr(TDH);
-		tail = sr(TDL);
-
-		DPRINTF(DEBUG, "%s(): TX: head=%d, tail=%d\n",
+	DPRINTF(DEBUG, "%s(): head=%d, tail=%d\n",
 			__func__, head, tail);
 
-		if (tail == head)
-			return ENOMEM;
+	if (tail == head)
+		return ENOMEM;
 
-		desc = &adaptor->tx_desc[tail];
+	desc = &adaptor->tx_desc[tail];
 
-		/* Mark this descriptor ready. */
-		desc->lower.data = E1000_TXD_CMD_IFCS | E1000_TXD_CMD_RS;
-		desc->lower.flags.length = dqbuf_get_data_size(buf);
-		desc->upper.data = 0; /* status */
+	/* Mark this descriptor ready. */
+	desc->lower.data = E1000_TXD_CMD_IFCS | E1000_TXD_CMD_RS;
+	desc->lower.flags.length = dqbuf_get_data_length(buf);
+	desc->upper.data = 0; /* status */
 
-		/* Mark end-of-packet if this is last descriptor */
-		if (tail == adaptor->num_tx_queues - 1)
-			desc->lower.data |= E1000_TXD_CMD_EOP;
+	/* Mark end-of-packet if this is last descriptor */
+	if (tail == adaptor->num_tx_queues - 1)
+		desc->lower.data |= E1000_TXD_CMD_EOP;
 
-		/* Advance the counter */
-		tail = (tail + 1) % adaptor->num_tx_queues;
-		sw(TDL, tail);
-		break;
-	}
-	case QUEUE_YX: { /* an empty buffer is queued for receiving */
-		head = sr(RDH);
-		tail = sr(RDL);
-
-		DPRINTF(DEBUG, "%s(): RX: head=%d, tail=%d\n",
-			__func__, head, tail);
-
-		desc = &adaptor->rx_desc[tail];
-
-		/* Mark this descriptor ready. */
-		desc->lower.data = 0;
-		desc->lower.flags.length = dqbuf_get_buf_size(buf);
-		desc->upper.data = 0; /* status */
-		desc->buffer_addr = dqbuf_get_paddr(buf);
-
-		/* Mark end-of-packet if this is last descriptor */
-		if (tail == adaptor->num_rx_queues - 1)
-			desc->lower.data |= E1000_TXD_CMD_EOP;
-
-		/* Advance the counter */
-		tail = (tail + 1) % adaptor->num_rx_queues;
-		sw(RDL, head);
-	}
-
-	default:
-		return EINVAL:
-	}
+	/* Advance the counter */
+	tail = (tail + 1) % adaptor->num_tx_queues;
+	sw(TDL, tail);
 
 	return 0;
 }

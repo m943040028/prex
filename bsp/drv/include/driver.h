@@ -42,7 +42,7 @@
 #include <sys/device.h>
 #include <dki.h>
 #include <ddi.h>
-
+#include <error.h>
 
 __BEGIN_DECLS
 void	driver_probe(void);

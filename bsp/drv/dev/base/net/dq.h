@@ -24,6 +24,13 @@
  * - for receive, the operation is reversed.
  */
 
+typedef enum dqbuf_state {
+	DB_INITIALIZED  = 0x0001,
+	DB_FREE         = 0x0002,
+	DB_MAPPED       = 0x0004,
+	DB_READY        = 0x0008,
+} dqbuf_state_t;
+
 struct datagram_buffer {
 #define DATAGRAM_HDR_MAGIC	0x9a0a
 	uint16_t magic;

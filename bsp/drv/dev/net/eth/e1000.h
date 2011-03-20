@@ -24,3 +24,7 @@ DRPINTF(TRACE, "Leaving %s(), ret=%d\n",  __func__);
 
 #define ew32(reg, value) \
 	(bus_write_32(hw->io_base + E1000_##reg, (value)))
+
+
+#define	E1000_NUM_TX_QUEUE	32
+#define	E1000_NUM_RX_QUEUE	32

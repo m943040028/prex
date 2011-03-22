@@ -1,7 +1,7 @@
 #ifndef _DATAGRAM_Q_H
 #define _DATAGRAM_Q_H_
-
-#include <net.h>
+#include <sys/ioctl.h>
+#include <sys/queue.h>
 
 /*
  * For efficiency, all datagram reported from data-link layer is
@@ -35,26 +35,26 @@ struct datagram_buffer {
 #define DATAGRAM_HDR_MAGIC	0x9a0a
 	uint16_t magic;
 	uint16_t index;
-	dq_state_t state;
-	off_t data_offset; /* offset of the data buffer */
-	size_t data_size;  /* data size */
+	dqbuf_state_t state;
+	uint8_t buf_pages;/* memory pages per datagram_buffer */
+	uint8_t buf_align;/* alignment in buffer for performance */
+	void *data_start; /* address of the data buffer */
+	size_t data_size; /* data size */
+	queue_t link;
 };
 
 struct datagram_queue 
 {
-	uint8_t nr_bufs		/* number of allocated datagram_buffer */
-	uint8_t buf_pages;	/* memory pages per datagram_buffer */
-	uint8_t buf_align;	/* alignment in buffer for performance */
-	datagram_buffer_t *bufs;/* list of datagram_buffer */
-	queue_type_t type;	/* type of the queue: RX or TX */
+	uint8_t nr_bufs;	/* number of allocated datagram_buffer */
+	dbuf_t *bufs;		/*  buffer array */
+	queue_t tx_queue;	/* list of buffers ready to transmit */
+	queue_t rx_queue;	/* list of buffers consisted recevied*/
+	queue_t free_list;	/* list of buffers that is free to use */
 };
 
-
 __BEGIN_DECLS
-int	dq_request_buf(struct datagram_queue *);
+struct datagram_buffer *dq_alloc_buf(int nr_pages);
 int	dq_release_buf(struct datagram_queue *);
-int	dq_queue_buf(struct datagram_queue *, datagram_buffer_t);
-int	dq_dequeue_buf(struct datagram_queue *, datagram_buffer_t *);
 __END_DECLS
 
 #endif

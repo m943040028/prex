@@ -1,41 +1,67 @@
 #include <driver.h>
-#include <net.h>
 #include <sys/list.h>
+#include <sys/ioctl.h>
 #include "dq.h"
 
-int
-dq_request_buf(struct datagram_queue *queue,
-	       struct datagram_buffer_req req)
+struct datagram_buffer *
+dq_alloc_buf(int nr_pages)
 {
-	int i;
+	paddr_t p;
+	struct datagram_buffer *buf;
+	if ((p = page_alloc(nr_pages * PAGE_SIZE)) == 0)
+		return NULL;
 
-	datagram_buffer_t buf;
-	queue.nr_buf = req.nr_buf;
-	queue.buf_pages = req.buf_pages;
-	queue.buf_align = req.buf_align;
-
-	ASSERT(list_empty(&queue->buf_queue));
-
-	queue->bufs = kmem_alloc(req.nr_buf * sizeof(datagram_buffer_t));
-	for (i = 0; i < req.nr_buf; i++) {
-		buf = (datagram_buffer_t)
-		      ptokv(page_alloc(req.buf_pages * PAGE_SIZE));
-		memset(buf, 0, sizeof(*buf));
-		queue->bufs[i] = buf;
-		buf->magic = DATAGRAM_HDR_MAGIC;
-		buf->state = DB_INITIALIZED;
-	}
+	buf = ptokv(p);
+	memset(buf, 0, nr_pages * PAGE_SIZE);
+	buf->magic = DATAGRAM_HDR_MAGIC;
+	buf->state = DB_INITIALIZED;
+	buf->buf_pages = nr_pages;
+	queue_init(&buf->link);
 
 	return 0;
 }
 
 int
-dq_release_buf(struct datagram_queue *queue)
+dq_release_buf(struct datagram_buffer *buf)
 {
-	int i;
+	ASSERT((buf->magic == DATAGRAM_HDR_MAGIC));
 
-	for (i = 0; i > queue.nr_buf; i++)
-		page_free(kvtop(qeueu->bufs[i]));
-	kmem_free(queue->bufs);
+	page_free(kvtop(buf), buf->buf_pages);
 	return 0;
+}
+
+/* DDI interface, used by network device drivers */
+
+/* release a tranfered buffer to datagram queue */
+int
+dq_buf_release(dbuf_t buf)
+{
+}
+
+/* request an empty buffer for receving from datagram queue */
+int
+dq_buf_request(dbuf_t *buf)
+{
+}
+
+/* add a recevied buffer to datagram queue */
+int
+dq_buf_add(dbuf_t buf);
+{
+}
+
+paddr_t
+dq_buf_get_paddr(dbuf_t buf)
+{
+	struct datagram_buffer *dbuf =
+		(struct datagram_buffer *)buf
+	return dbuf->data_start;
+}
+
+size_t
+dq_buf_get_size(dbuf_t buf)
+{
+	struct datagram_buffer *dbuf =
+		(struct datagram_buffer *)buf
+	return dbuf->buf_pages * PAGE_SIZE;
 }

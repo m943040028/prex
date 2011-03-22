@@ -1,6 +1,6 @@
 #include <driver.h>
-#include <net.h>
 #include <sys/list.h>
+#include <net.h>
 
 #include "dq.h"
 
@@ -8,18 +8,16 @@
 
 static int net_open(device_t, int);
 static int net_close(device_t);
-static int net_read(device_t, char *, size_t *, int);
-static int net_write(device_t, char *, size_t *, int);
 static int net_ioctl(device_t, u_long, void *);
 static int net_devctl(device_t, u_long, void *);
 static int net_init(struct driver *);
 
-
 static struct list net_driver_list = LIST_INIT(net_driver_list);
 
 struct net_softc {
-	device_t	dev;
-	device_t	net_devs[MAX_NET_DEVS];
+	device_t dev;
+	device_t net_devs[MAX_NET_DEVS];
+	struct datagram_queue *queue;
 };
 
 static struct devops net_devops = {
@@ -41,13 +39,6 @@ struct driver net_driver = {
 	/* shutdown */	NULL,
 };
 
-struct datagram_queue_operations {
-        /* request_buf */	dq_request_buf,
-        /* release_buf */	dq_release_buf,
-        /* queue_buf */		dq_queue_buf,
-        /* dequeue_buf */	dq_dequeue_buf,
-} dq_ops;
-
 int
 net_driver_attach(struct net_driver *driver)
 {
@@ -64,11 +55,6 @@ net_driver_private(struct net_driver *driver)
 	nc = driver->nc;
 	dev = nc->net_devs[driver->id];
 	return device_private(dev);
-}
-
-int
-net_driver_set_dbuf_state(datagram_buffer_t dbuf, dq_state_t)
-{
 }
 
 static int

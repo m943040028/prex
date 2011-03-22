@@ -111,6 +111,13 @@ int	 sprintf(char *, const char*, ...);
 #ifdef DEBUG
 void	 assert(const char *, int, const char *);
 #endif
+
+int	 dq_buf_release(dbuf_t buf);
+int	 dq_buf_request(dbuf_t *buf);
+int	 dq_buf_add(dbuf_t buf);
+size_t	 dq_buf_get_size(dbuf_t buf);
+size_t	 dq_buf_get_data_length(dbuf_t buf);
+paddr_t	 dq_buf_get_paddr(dbuf_t buf);
 __END_DECLS
 
 #endif /* !_DDI_H */

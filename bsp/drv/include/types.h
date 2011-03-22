@@ -38,6 +38,7 @@ typedef unsigned long	task_t;
 typedef unsigned long	thread_t;
 typedef unsigned long	device_t;
 typedef unsigned long	irq_t;
+typedef unsigned long	dbuf_t;
 typedef unsigned long	dma_t;
 
 #define NODMA		((dma_t)-1)

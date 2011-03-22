@@ -1,6 +1,6 @@
 #ifdef DEBUG_E1000
 enum {
-	DBG_INFO, DBG_TRACE
+	DBG_INFO, DBG_TRACE, DBG_TX, DBG_RX
 };
 #define DBGBIT(x)       (1<<DBG_##x)
 extern int debugflags;

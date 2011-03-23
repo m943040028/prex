@@ -8,7 +8,7 @@ SRCS-$(CONFIG_CONS)+=	dev/base/cons.c
 SRCS-$(CONFIG_WSCONS)+=	dev/base/wscons.c
 
 SRCS-$(CONFIG_NET)+=	dev/base/net/net.c \
-			dev/base/net/dq.c
+			dev/base/net/dbuf.c
 
 ifeq ($(DEBUG),1)
 SRCS-$(CONFIG_KD)+=	dev/base/kd.c

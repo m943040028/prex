@@ -50,13 +50,6 @@ static int e1000_transmit(struct net_driver *, dbuf_t);
 /* global definitions */
 static list_t pci_device_list; /* list of pci devices probed */
 
-static struct net_driver_operations e1000_ops = {
-	/* init */	e1000_net_init,
-	/* start */	e1000_net_start,
-	/* stop */	e1000_net_stop,
-	/* transmit */	e1000_transmit,
-};
-
 struct driver e1000_driver = {
 	/* name */	"e1000",
 	/* devsops */	NULL,
@@ -67,12 +60,12 @@ struct driver e1000_driver = {
 	/* shutdown */	NULL,
 };
 
-static struct net_driver e1000_net_driver = {
-	/* driver */	&e1000_driver,
-	/* ops */	&e1000_ops,
-	/* inteface */	NETIF_ETHERNET,
+static struct netdrv_ops e1000_netdrv_ops = {
+	/* init */	e1000_net_init,
+	/* start */	e1000_net_start,
+	/* stop */	e1000_net_stop,
+	/* transmit */	e1000_transmit,
 };
-
 
 static int
 e1000_hw_reset(struct e1000_hw *hw)
@@ -144,7 +137,7 @@ e1000_net_init(struct net_driver *self)
 		DPRINTF(INFO, "cannot configure PCI interface\n");
 	}
 
-	adaptor = net_driver_private(self);
+	adaptor = netdrv_private(self);
 	hw = &adaptor->hw;
 
 	hw->io_base = pci_func_get_reg_base(f, 0);
@@ -185,10 +178,10 @@ e1000_fill_rx_buffer(struct e1000_adaptor *adaptor)
 	dbuf_t dbuf;
 	struct e1000_rx_desc *desc = adaptor->rx_desc;
 
-	while (ENOMEM != dq_buf_request(&dbuf) || tail != head)
+	while (ENOMEM != dbuf_request(&dbuf) || tail != head)
 	{
-		desc[tail].buffer_addr = dq_buf_get_paddr(dbuf);
-		desc[tail].length = dq_buf_get_size(dbuf);
+		desc[tail].buffer_addr = dbuf_get_paddr(dbuf);
+		desc[tail].length = dbuf_get_size(dbuf);
 		adaptor->rx_bufs[tail] = dbuf;
 		if (++tail >= adaptor->num_rx_queues)
 			tail = 0;
@@ -209,7 +202,7 @@ e1000_rx(struct e1000_adaptor *adaptor)
 	while (rx_ptr < head)
 	{
 		rx_buf = adaptor->rx_bufs[rx_ptr];
-		dq_buf_add(rx_buf);
+		dbuf_add(rx_buf);
 
 		if (++rx_ptr >= adaptor->num_rx_queues)
 			rx_ptr = 0;
@@ -233,7 +226,7 @@ e1000_release_tx_buffer(struct e1000_adaptor *adaptor)
 	while (tx_ptr < head)
 	{
 		tx_buf = adaptor->tx_bufs[tx_ptr];
-		dq_buf_release(tx_buf);
+		dbuf_release(tx_buf);
 
 		if (++tx_ptr >= adaptor->num_rx_queues)
 			tx_ptr = 0;
@@ -272,7 +265,7 @@ e1000_net_start(struct net_driver *self)
 {
 	struct e1000_adaptor *adaptor;
 	struct e1000_hw *hw;
-	adaptor = net_driver_private(self);
+	adaptor = netdrv_private(self);
 	hw = &adaptor->hw;
 	uint32_t rctl, tctl;
 
@@ -357,7 +350,7 @@ e1000_transmit(struct net_driver *self, dbuf_t buf)
 {
 	struct e1000_adaptor *adaptor;
 	struct e1000_hw *hw;
-	adaptor = net_driver_private(self);
+	adaptor = netdrv_private(self);
 	hw = &adaptor->hw;
 	uint32_t head, tail;
 	struct e1000_tx_desc *desc;
@@ -375,7 +368,7 @@ e1000_transmit(struct net_driver *self, dbuf_t buf)
 
 	/* Mark this descriptor ready. */
 	desc->lower.data = E1000_TXD_CMD_IFCS | E1000_TXD_CMD_RS;
-	desc->lower.flags.length = dq_buf_get_data_length(buf);
+	desc->lower.flags.length = dbuf_get_data_length(buf);
 	desc->upper.data = 0; /* status */
 
 	/* Mark end-of-packet if this is last descriptor */
@@ -404,7 +397,7 @@ e1000_probe(struct driver *self)
 		return ENODEV;
 	}
 	DPRINTF(INFO, "probed eepro1000 NIC\n");
-	net_driver_attach(&e1000_net_driver);
+	netdrv_attach(&e1000_netdrv_ops, &e1000_driver, NETIF_ETHERNET);
 
 	return 0;
 }

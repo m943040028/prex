@@ -4,20 +4,13 @@
 #include <sys/cdefs.h>
 #include <types.h>
 
-typedef enum netif {
+struct net_driver;
+
+typedef enum netif_type {
 	NETIF_ETHERNET	= 0x0001,
-} netif_t;
+} netif_type_t;
 
-struct net_driver {
-	struct driver *driver;
-	struct net_driver_operations *ops;
-	netif_t interface;
-	int id;
-	struct list link;
-	struct net_softc *nc;
-};
-
-struct net_driver_operations 
+struct netdrv_ops 
 {
 	int	(*init)(struct net_driver *);
 	int	(*start)(struct net_driver *);
@@ -26,8 +19,8 @@ struct net_driver_operations
 };
 
 __BEGIN_DECLS
-int	net_driver_attach(struct net_driver *driver);
-void*	net_driver_private(struct net_driver *driver);
+int	netdrv_attach(struct netdrv_ops *, struct driver *, netif_type_t);
+void*	netdrv_private(struct net_driver *);
 __END_DECLS
 
 #endif /* _NET_H_ */

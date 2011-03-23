@@ -1,10 +1,12 @@
 #include <driver.h>
 #include <sys/list.h>
+#include <sys/queue.h>
 #include <net.h>
 
-#include "dq.h"
+#include "dbuf.h"
 
-#define MAX_NET_DEVS	4
+#define MAX_NET_DEVS		4
+#define NUM_DBUFS_IN_POOL	256
 
 static int net_open(device_t, int);
 static int net_close(device_t);
@@ -12,12 +14,20 @@ static int net_ioctl(device_t, u_long, void *);
 static int net_devctl(device_t, u_long, void *);
 static int net_init(struct driver *);
 
-static struct list net_driver_list = LIST_INIT(net_driver_list);
+static struct list netdrv_list = LIST_INIT(netdrv_list);
 
 struct net_softc {
-	device_t dev;
-	device_t net_devs[MAX_NET_DEVS];
-	struct datagram_queue *queue;
+	device_t		dev;
+	device_t		net_devs[MAX_NET_DEVS];
+};
+
+struct net_driver {
+	struct driver           *driver;
+	struct netdrv_ops       *ops;
+	netif_type_t            interface;
+	int                     id;
+	struct list             link;
+	struct net_softc        *nc;
 };
 
 static struct devops net_devops = {
@@ -40,15 +50,25 @@ struct driver net_driver = {
 };
 
 int
-net_driver_attach(struct net_driver *driver)
+netdrv_attach(struct netdrv_ops *ops, struct driver *driver,
+	      netif_type_t type)
 {
-	list_init(&driver->link);
-	list_insert(&net_driver_list, &driver->link);
+	struct net_driver *nd;
+	nd = kmem_alloc(sizeof(*nd));
+	if (!nd)
+		return ENOMEM;
+	
+	memset(nd, 0, sizeof(*nd));
+	nd->interface = type;
+	nd->driver = driver;
+	nd->ops = ops;
+	list_init(&nd->link);
+	list_insert(&netdrv_list, &nd->link);
 	return 0;
 }
 
 void *
-net_driver_private(struct net_driver *driver)
+netdrv_private(struct net_driver *driver)
 {
 	device_t dev;
 	struct net_softc *nc;
@@ -73,8 +93,8 @@ net_init(struct driver *self)
 	nc = device_private(dev);
 	nc->dev = dev;
 
-	list_t  n, head = &net_driver_list;
-	for (n = list_first(&net_driver_list); n != head;
+	list_t  n, head = &netdrv_list;
+	for (n = list_first(&netdrv_list); n != head;
 	     n = list_next(n)) {
 		int ret;
 		char name[20];
@@ -83,6 +103,7 @@ net_init(struct driver *self)
 		sprintf(name, "net%d", id);
 		nd->id = id;
 		nd->nc = nc;
+		nd->driver->devops = &net_devops;
 		nc->net_devs[id] = device_create(nd->driver,
 						 name, D_NET|D_PROT);
 
@@ -96,6 +117,10 @@ net_init(struct driver *self)
 		if (id >= MAX_NET_DEVS)
 			break;
 	}
+
+	/* initialize dbuf subsystem */
+	dbuf_init(NUM_DBUFS_IN_POOL);
+
 	return 0;
 }
 

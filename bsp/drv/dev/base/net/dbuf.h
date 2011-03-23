@@ -1,6 +1,6 @@
 #ifndef _DATAGRAM_Q_H
 #define _DATAGRAM_Q_H_
-#include <sys/ioctl.h>
+
 #include <sys/queue.h>
 
 /*
@@ -24,37 +24,25 @@
  * - for receive, the operation is reversed.
  */
 
-typedef enum dqbuf_state {
-	DB_INITIALIZED  = 0x0001,
-	DB_FREE         = 0x0002,
-	DB_MAPPED       = 0x0004,
-	DB_READY        = 0x0008,
-} dqbuf_state_t;
+typedef enum dbuf_state {
+	DB_FREE         = 0x0001,
+	DB_READY        = 0x0002,
+} dbuf_state_t;
 
-struct datagram_buffer {
+struct dbuf {
 #define DATAGRAM_HDR_MAGIC	0x9a0a
-	uint16_t magic;
-	uint16_t index;
-	dqbuf_state_t state;
-	uint8_t buf_pages;/* memory pages per datagram_buffer */
-	uint8_t buf_align;/* alignment in buffer for performance */
-	void *data_start; /* address of the data buffer */
-	size_t data_size; /* data size */
-	queue_t link;
-};
-
-struct datagram_queue 
-{
-	uint8_t nr_bufs;	/* number of allocated datagram_buffer */
-	dbuf_t *bufs;		/*  buffer array */
-	queue_t tx_queue;	/* list of buffers ready to transmit */
-	queue_t rx_queue;	/* list of buffers consisted recevied*/
-	queue_t free_list;	/* list of buffers that is free to use */
+	uint16_t	magic;
+	uint16_t	index;
+	dbuf_state_t	state;
+	uint8_t		buf_pages;/* memory pages per datagram_buffer */
+	uint8_t		buf_align;/* alignment in buffer for performance */
+	void 		*data_start; /* address of the data buffer */
+	size_t		data_length; /* actual data length */
+	struct queue	link;
 };
 
 __BEGIN_DECLS
-struct datagram_buffer *dq_alloc_buf(int nr_pages);
-int	dq_release_buf(struct datagram_queue *);
+int dbuf_init(int);
 __END_DECLS
 
 #endif

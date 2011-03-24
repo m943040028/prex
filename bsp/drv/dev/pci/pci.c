@@ -82,6 +82,7 @@ struct pci_func {
 	uint32_t reg_base[6];
 	uint32_t reg_size[6];
 	uint8_t irq_line;
+	uint8_t irq_pin;
 
 	struct list link;
 };
@@ -301,7 +302,11 @@ pci_func_configure(struct pci_func *f)
 		f->reg_size[regnum] = size;
 	}
 	f->irq_line = pci_allocate_irqline();
-	pci_conf_write(f, PCI_INTERRUPT_REG, PCI_INTERRUPT_LINE(f->irq_line));
+	/* FIXME */
+	f->irq_pin = PCI_INTERRUPT_PIN_C;
+	pci_conf_write(f, PCI_INTERRUPT_REG,
+		       PCI_INTERRUPT_LINE(f->irq_line) |
+		       PCI_INTERRUPT_PIN(f->irq_pin));
 
 	printf("pci: function %02x:%02x.%d (%04x:%04x) configured\n",
 		f->bus->busno, f->dev, f->func,
@@ -368,4 +373,27 @@ uint8_t __inline
 pci_func_get_irqline(struct pci_func *f)
 {
 	return f->irq_line;
+}
+
+uint32_t __inline
+pci_bus_read32(paddr_t addr)
+{
+	return pci_to_host(bus_read_32(addr));
+}
+void __inline
+pci_bus_write32(paddr_t addr, uint32_t data)
+{
+	bus_write_32(addr, host_to_pci(data));
+}
+
+uint8_t __inline
+pci_bus_read8(paddr_t addr)
+{
+	return bus_read_8(addr);
+}
+
+void __inline
+pci_bus_write8(paddr_t addr, uint8_t data)
+{
+	bus_write_8(addr, data);
 }

@@ -54,6 +54,11 @@ uint8_t	  pci_func_get_irqline(struct pci_func *);
 
 void	  pci_conf_write(struct pci_func *, uint32_t, uint32_t);
 uint32_t  pci_conf_read(struct pci_func *, uint32_t);
+
+uint32_t  pci_bus_read32(paddr_t); 
+void	  pci_bus_write32(paddr_t, uint32_t);
+uint8_t	  pci_bus_read8(paddr_t); 
+void	  pci_bus_write8(paddr_t, uint8_t);
 struct pci_func *to_pci_func(list_t);
 __END_DECLS
 

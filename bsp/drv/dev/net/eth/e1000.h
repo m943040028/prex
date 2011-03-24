@@ -16,15 +16,20 @@ extern int debugflags;
 
 #define LOG_FUNCTION_NAME_ENTRY() \
 DPRINTF(TRACE, "Calling %s()\n",  __func__);
+#define LOG_FUNCTION_NAME_EXIT_NORET() \
+DPRINTF(TRACE, "Leaving %s()\n",  __func__);
 #define LOG_FUNCTION_NAME_EXIT(r) \
-DRPINTF(TRACE, "Leaving %s(), ret=%d\n",  __func__);
+DPRINTF(TRACE, "Leaving %s(), ret=%d\n",  __func__, r);
 
 #define er32(reg) \
-	(bus_read_32(hw->io_base + E1000_##reg))
-
+	(pci_bus_read32(hw->io_base + E1000_##reg))
 #define ew32(reg, value) \
-	(bus_write_32(hw->io_base + E1000_##reg, (value)))
+	(pci_bus_write32(hw->io_base + E1000_##reg, (value)))
 
+#define er32_p(reg, offset) \
+	(pci_bus_read32(hw->io_base + E1000_##reg + (offset) * 4))
+#define ew32_p(reg, value, offset) \
+	(pci_bus_write32(hw->io_base + E1000_##reg + (offset) * 4, (value)))
 
 #define	E1000_NUM_TX_QUEUE	32
 #define	E1000_NUM_RX_QUEUE	32

@@ -85,13 +85,16 @@ net_init(struct driver *self)
 	device_t dev;
 	int id = 0;
 
-	dev = device_create(self, "netc", D_NET|D_PROT);
+	dev = device_create(self, "netc", D_NET);
 	if (!dev) {
 		return ENODEV;
 	}
 
 	nc = device_private(dev);
 	nc->dev = dev;
+
+	/* initialize dbuf subsystem */
+	dbuf_init(NUM_DBUFS_IN_POOL);
 
 	list_t  n, head = &netdrv_list;
 	for (n = list_first(&netdrv_list); n != head;
@@ -105,21 +108,21 @@ net_init(struct driver *self)
 		nd->nc = nc;
 		nd->driver->devops = &net_devops;
 		nc->net_devs[id] = device_create(nd->driver,
-						 name, D_NET|D_PROT);
+						 name, D_NET);
 
 		ret = nd->ops->init(nd);
-		if (!ret) {
+		if (ret) {
 			device_destroy(nc->net_devs[id]);
 			continue;
 		}
+
+		/**** for test *****/
+		nd->ops->start(nd);
 
 		id++;
 		if (id >= MAX_NET_DEVS)
 			break;
 	}
-
-	/* initialize dbuf subsystem */
-	dbuf_init(NUM_DBUFS_IN_POOL);
 
 	return 0;
 }

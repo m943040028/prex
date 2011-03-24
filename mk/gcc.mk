@@ -13,6 +13,7 @@ DEFINES=	$(addprefix -D,$(DEFS))
 # remove -Os, -pedantic
 CFLAGS+=	-c -ansi -Wall -Wundef -Wstrict-prototypes \
 		-Wpointer-arith -nostdinc -fno-strict-aliasing $(GCCFLAGS)
+CFLAGS+=	-MD
 CPPFLAGS+=	$(DEFINES) -I. $(addprefix -I,$(INCSDIR))
 ACPPFLAGS+=	-D__ASSEMBLY__
 LDFLAGS+=	-static -nostdlib $(addprefix -L,$(LIBSDIR))

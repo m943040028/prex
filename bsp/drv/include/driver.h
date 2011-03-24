@@ -42,6 +42,7 @@
 #include <sys/device.h>
 #include <dki.h>
 #include <ddi.h>
+#include <bytes.h>
 /*#include <error.h>*/
 
 __BEGIN_DECLS

@@ -55,9 +55,12 @@ SRCS+=		$(SRCS-y)
 ifeq ($(OBJS),)
 OBJS+=		$(addsuffix .o,$(basename $(SRCS)))
 endif
+ifeq ($(DEPS),)
+DEPS+=		$(addsuffix .d,$(basename $(SRCS)))
+endif
 
 .SUFFIXES:
-.SUFFIXES: .bin .a .o .S .c .cc .cpp .cxx .h
+.SUFFIXES: .bin .a .o .S .c .cc .cpp .cxx .h .d
 
 ifeq ($(_SILENT_),1)
 echo-file=	@echo '  $(1) $(subst $(SRCDIR)/,,$(abspath $(2)))'
@@ -104,26 +107,17 @@ endif
 ifdef SUBDIR
 .PHONY: $(SUBDIR)
 $(SUBDIR): dummy
-	@$(MAKE) -C $@
+	@$(MAKE) -sC $@
 endif
-
--include Makefile.dep
 
 #
 # Depend
 #
-.PHONY: depend dep
-depend dep:
-ifdef SUBDIR
-	@(for d in $(filter-out lib, $(SUBDIR)) _ ; do \
-	  if [ "$$d" != "_" ]; then $(MAKE) -C $$d depend; fi; \
-	done);
+ifneq ($(SRCS),)
+.deps: $(foreach dir, $(dir $(SRCS)), $(wildcard $(dir)/*.d))
+	perl $(SRCDIR)/mk/mergedep.pl $@ $^
+-include .deps
 endif
-	$(RM) Makefile.dep
-	@(for d in $(SRCS) _ ; do \
-	  if [ "$$d" != "_" ]; then \
-	  $(subst @,,$(CPP)) -M $(CPPFLAGS) $$d >> Makefile.dep; fi; \
-	done);
 
 #
 # Lint
@@ -132,7 +126,7 @@ endif
 lint:
 ifdef SUBDIR
 	@(for d in $(SUBDIR) _ ; do \
-	  if [ "$$d" != "_" ]; then $(MAKE) -C $$d lint; fi; \
+	  if [ "$$d" != "_" ]; then $(MAKE) -sC $$d lint; fi; \
 	done);
 endif
 	@(for d in $(filter %.c, $(SRCS)) _ ; do \
@@ -145,17 +139,18 @@ endif
 #
 # Clean up
 #
-CLEANS= Makefile.dep $(TARGET) $(OBJS) $(DISASM) $(MAP) $(SYMBOL) $(CLEANFILES)
+CLEANS= $(TARGET) $(OBJS) $(DEPS) $(DISASM) $(MAP) $(SYMBOL) $(CLEANFILES)
 
 .PHONY: clean
 clean:
 ifdef SUBDIR
 	@(for d in $(SUBDIR) _ ; do \
-	  if [ "$$d" != "_" ]; then $(MAKE) -C $$d clean; fi; \
+	  if [ "$$d" != "_" ]; then $(MAKE) -sC $$d clean; fi; \
 	done);
 endif
 	$(call echo-files,CLEAN  ,$(CLEANS))
 	$(RM) $(CLEANS)
+	$(RM) -f .deps
 
 .PHONY: dummy
 

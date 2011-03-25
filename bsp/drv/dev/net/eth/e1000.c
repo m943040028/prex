@@ -19,6 +19,7 @@ struct e1000_hw {
 
 struct e1000_adaptor {
 	irq_t		irq;		/* irq handle */
+	struct net_driver *driver;
 
 	int		num_tx_queues;
 	int		num_rx_queues;
@@ -138,6 +139,7 @@ e1000_net_init(struct net_driver *self)
 	}
 
 	adaptor = netdrv_private(self);
+	adaptor->driver = self;
 	hw = &adaptor->hw;
 
 	hw->io_base = pci_func_get_reg_base(f, 0);
@@ -184,7 +186,7 @@ e1000_fill_rx_buffer(struct e1000_adaptor *adaptor)
 
 	LOG_FUNCTION_NAME_ENTRY();
 
-	while (ENOMEM != dbuf_request(&dbuf))
+	while (ENOMEM != dbuf_request(adaptor->driver, &dbuf))
 	{
 		desc[tail].buffer_addr =
 			cpu_to_le64(dbuf_get_paddr(dbuf));
@@ -219,7 +221,7 @@ e1000_rx(struct e1000_adaptor *adaptor)
 			le16_to_cpu(desc->length));
 		rx_buf = adaptor->rx_bufs[rx_ptr];
 		dbuf_set_data_length(rx_buf, le16_to_cpu(desc->length));
-		dbuf_add(rx_buf);
+		dbuf_add(adaptor->driver, rx_buf);
 
 		if (++rx_ptr >= adaptor->num_rx_queues)
 			rx_ptr = 0;
@@ -244,7 +246,7 @@ e1000_release_tx_buffer(struct e1000_adaptor *adaptor)
 	while (tx_ptr < head)
 	{
 		tx_buf = adaptor->tx_bufs[tx_ptr];
-		dbuf_release(tx_buf);
+		dbuf_release(adaptor->driver, tx_buf);
 
 		if (++tx_ptr >= adaptor->num_rx_queues)
 			tx_ptr = 0;

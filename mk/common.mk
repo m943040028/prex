@@ -114,10 +114,11 @@ endif
 # Depend
 #
 ifneq ($(SRCS),)
-.deps: $(foreach dir, $(dir $(SRCS)), $(wildcard $(dir)/*.d))
-	perl $(SRCDIR)/mk/mergedep.pl $@ $^
--include .deps
+OBJDIRS=	$(sort $(dir $(SRCS)))
+.deps: $(foreach dir, $(OBJDIRS), $(wildcard $(dir)/*.d))
+	@perl $(SRCDIR)/mk/mergedep.pl $@ $^
 endif
+-include .deps
 
 #
 # Lint
@@ -139,7 +140,7 @@ endif
 #
 # Clean up
 #
-CLEANS= $(TARGET) $(OBJS) $(DEPS) $(DISASM) $(MAP) $(SYMBOL) $(CLEANFILES)
+CLEANS= .deps $(TARGET) $(OBJS) $(DEPS) $(DISASM) $(MAP) $(SYMBOL) $(CLEANFILES)
 
 .PHONY: clean
 clean:
@@ -148,9 +149,7 @@ ifdef SUBDIR
 	  if [ "$$d" != "_" ]; then $(MAKE) -sC $$d clean; fi; \
 	done);
 endif
-	$(call echo-files,CLEAN  ,$(CLEANS))
 	$(RM) $(CLEANS)
-	$(RM) -f .deps
 
 .PHONY: dummy
 

@@ -1,8 +1,8 @@
-#ifndef _DATAGRAM_Q_H
-#define _DATAGRAM_Q_H_
+#ifndef _DBUF_H_
+#define _DBUF_H_
+struct net_driver;
 
 #include <sys/queue.h>
-
 /*
  * For efficiency, all datagram reported from data-link layer is
  * memory mapped.
@@ -42,7 +42,7 @@ struct dbuf {
 };
 
 __BEGIN_DECLS
-int dbuf_init(int);
+int dbuf_pool_init(struct net_driver *, int);
 __END_DECLS
 
-#endif
+#endif /* _DBUF_H_ */

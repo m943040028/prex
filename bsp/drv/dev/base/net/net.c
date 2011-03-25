@@ -1,9 +1,11 @@
 #include <driver.h>
 #include <sys/list.h>
 #include <sys/queue.h>
+#include <sys/ioctl.h>
 #include <net.h>
 
 #include "dbuf.h"
+#include "netdrv.h"
 
 #define MAX_NET_DEVS		4
 #define NUM_DBUFS_IN_POOL	256
@@ -19,15 +21,7 @@ static struct list netdrv_list = LIST_INIT(netdrv_list);
 struct net_softc {
 	device_t		dev;
 	device_t		net_devs[MAX_NET_DEVS];
-};
-
-struct net_driver {
-	struct driver           *driver;
-	struct netdrv_ops       *ops;
-	netif_type_t            interface;
-	int                     id;
-	struct list             link;
-	struct net_softc        *nc;
+	struct net_driver	*net_drvs[MAX_NET_DEVS];
 };
 
 static struct devops net_devops = {
@@ -93,9 +87,6 @@ net_init(struct driver *self)
 	nc = device_private(dev);
 	nc->dev = dev;
 
-	/* initialize dbuf subsystem */
-	dbuf_init(NUM_DBUFS_IN_POOL);
-
 	list_t  n, head = &netdrv_list;
 	for (n = list_first(&netdrv_list); n != head;
 	     n = list_next(n)) {
@@ -115,9 +106,13 @@ net_init(struct driver *self)
 			device_destroy(nc->net_devs[id]);
 			continue;
 		}
+		nc->net_drvs[id] = nd;
 
 		/**** for test *****/
+		/* initialize dbuf subsystem */
+		dbuf_pool_init(nd, NUM_DBUFS_IN_POOL);
 		nd->ops->start(nd);
+		/*******************/
 
 		id++;
 		if (id >= MAX_NET_DEVS)
@@ -129,6 +124,8 @@ net_init(struct driver *self)
 
 static int net_open(device_t dev, int mode)
 {
+	if (!task_capable(CAP_NETWORK))
+		return EPERM;
 	return 0;
 }
 
@@ -139,6 +136,31 @@ static int net_close(device_t dev)
 
 static int net_ioctl(device_t dev, u_long cmd, void *args)
 {
+	if (!task_capable(CAP_NETWORK))
+		return EPERM;
+	switch (cmd) {
+
+	case NETIO_QUERY_NR_IF:
+		break;
+	case NETIO_GET_IF_CAPS:
+		break;
+	case NETIO_GET_STATUS:
+		break;
+	case NETIO_START:
+		break;
+	case NETIO_STOP:
+		break;
+	case NETIO_ALLOC_BUF:
+		break;
+	case NETIO_DROP_BUF:
+		break;
+	case NETIO_SEND:
+		break;
+	case NETIO_RECV:
+		break;
+	default:
+		return EINVAL;
+	};
 	return 0;
 }
 

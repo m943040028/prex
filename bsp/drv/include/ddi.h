@@ -111,14 +111,6 @@ int	 sprintf(char *, const char*, ...);
 #ifdef DEBUG
 void	 assert(const char *, int, const char *);
 #endif
-
-int	 dbuf_release(dbuf_t buf);
-int	 dbuf_request(dbuf_t *buf);
-int	 dbuf_add(dbuf_t buf);
-size_t	 dbuf_get_size(dbuf_t buf);
-size_t	 dbuf_get_data_length(dbuf_t buf);
-paddr_t	 dbuf_get_paddr(dbuf_t buf);
-void	 dbuf_set_data_length(dbuf_t buf, uint16_t);
 __END_DECLS
 
 #endif /* !_DDI_H */

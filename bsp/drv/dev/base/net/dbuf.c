@@ -4,13 +4,7 @@
 #include <sys/queue.h>
 
 #include "dbuf.h"
-
-struct dbuf_pool {
-	struct queue	free_list;
-	struct queue	rx_queue;
-	struct queue	tx_queue;
-};
-static struct dbuf_pool dbuf_pool;
+#include "netdrv.h"
 
 static struct dbuf *
 dbuf_alloc(int nr_pages)
@@ -32,31 +26,24 @@ dbuf_alloc(int nr_pages)
 	return buf;
 }
 
-static int
-dbuf_pool_init(struct dbuf_pool *pool, int num_dbufs)
+int
+dbuf_pool_init(struct net_driver *driver, int num_dbufs)
 {
 	int i;
 
-	queue_init(&pool->free_list);
-	queue_init(&pool->tx_queue);
-	queue_init(&pool->rx_queue);
+	queue_init(&driver->free_list);
+	queue_init(&driver->tx_queue);
+	queue_init(&driver->rx_queue);
 
 	for (i = 0; i < num_dbufs; i++)
 	{
 		struct dbuf *buf;
+		/* give 1 page buffer as default size */
 		buf = dbuf_alloc(1);
 		if (!buf)
 			return ENOMEM;
-		enqueue(&pool->free_list, &buf->link);
+		enqueue(&driver->free_list, &buf->link);
 	}
-	return 0;
-}
-
-int
-dbuf_init(int num_dbufs)
-{
-	if (dbuf_pool_init(&dbuf_pool, num_dbufs) != 0)
-		return ENOMEM;
 	return 0;
 }
 
@@ -64,24 +51,24 @@ dbuf_init(int num_dbufs)
 
 /* release a tranfered buffer to dbuf pool */
 int
-dbuf_release(dbuf_t buf)
+dbuf_release(struct net_driver *driver, dbuf_t buf)
 {
 	struct dbuf *dbuf = (struct dbuf *)buf;
 	ASSERT(dbuf->magic == DATAGRAM_HDR_MAGIC);
 	dbuf->state = DB_FREE;
 
-	enqueue(&dbuf_pool.free_list, &dbuf->link);
+	enqueue(&driver->free_list, &dbuf->link);
 	return 0;
 }
 
 /* request an empty buffer for receving from dbuf pool */
 int
-dbuf_request(dbuf_t *buf)
+dbuf_request(struct net_driver *driver, dbuf_t *buf)
 {
 	struct dbuf *dbuf;
 	queue_t q;
 
-	q = dequeue(&dbuf_pool.free_list);
+	q = dequeue(&driver->free_list);
 	if (!q)
 		return ENOMEM;
 	dbuf = queue_entry(q, struct dbuf, link);
@@ -92,13 +79,13 @@ dbuf_request(dbuf_t *buf)
 
 /* add a recevied buffer to datagram queue to dbuf pool */
 int
-dbuf_add(dbuf_t buf)
+dbuf_add(struct net_driver *driver, dbuf_t buf)
 {
 	struct dbuf *dbuf = (struct dbuf *)buf;
 	ASSERT(dbuf->magic == DATAGRAM_HDR_MAGIC);
 	dbuf->state = DB_READY;
 
-	enqueue(&dbuf_pool.tx_queue, &dbuf->link);
+	enqueue(&driver->rx_queue, &dbuf->link);
 	return 0;
 }
 

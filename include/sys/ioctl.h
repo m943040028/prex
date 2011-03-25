@@ -33,6 +33,7 @@
 #include <sys/cdefs.h>
 #include <sys/time.h>
 #include <sys/power.h>
+#include <sys/net.h>
 
 /*
  * Ioctl's have the command encoded in the lower word, and the size of
@@ -110,12 +111,24 @@ struct __timeval {
 /*
  * Net coordinator I/O control code
  */
-#define DQ_REQUEST_BUF		_IOR('D', 0, struct datagram_buffer_req)
+#define NETIO_QUERY_NR_IF	_IOR('D', 0, int)
+#define NETIO_GET_IF_CAPS	_IOR('D', 1, struct net_if_caps)
+#define NETIO_GET_STATUS	_IOR('D', 2, struct net_if_status)
+#define NETIO_START		_IOR('D', 3, 0)
+#define NETIO_STOP		_IOR('D', 4, 0)
+#define NETIO_ALLOC_BUF		_IOR('D', 5, int)
+#define NETIO_DROP_BUF		_IOR('D', 6, 0)
+#define NETIO_SEND		_IOR('D', 7, vaddr_t)
+#define NETIO_RECV		_IOR('D', 8, vaddr_t)
 
-struct datagram_buffer_req {
-	uint8_t	nr_buf;
-	uint8_t	buf_pages;
-	uint8_t	buf_align;
+struct net_if_caps {
+	netif_type_t	type;
+	int		mtu;
+};
+struct net_if_status {
+	int		nr_recv;
+	int		nr_tx;
+	int		nr_dropped;
 };
 
 __BEGIN_DECLS

@@ -112,6 +112,7 @@ device_t device_lookup(const char *);
 int	 device_control(device_t, u_long, void *);
 int	 device_broadcast(u_long, void *, int);
 void	*device_private(device_t);
+void	 device_name(device_t, char *);
 
 int	 copyin(const void *, void *, size_t);
 int	 copyout(const void *, void *, size_t);

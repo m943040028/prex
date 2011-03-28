@@ -16,13 +16,14 @@ static int net_ioctl(device_t, u_long, void *);
 static int net_devctl(device_t, u_long, void *);
 static int net_init(struct driver *);
 
-static struct list netdrv_list = LIST_INIT(netdrv_list);
-
 struct net_softc {
-	device_t		dev;
 	device_t		net_devs[MAX_NET_DEVS];
 	struct net_driver	*net_drvs[MAX_NET_DEVS];
+	int			nrdevs;
+	int			isopen;
 };
+static struct net_softc *net_softc;
+static struct list netdrv_list = LIST_INIT(netdrv_list);
 
 static struct devops net_devops = {
 	/* open */	net_open,
@@ -43,6 +44,170 @@ struct driver net_driver = {
 	/* shutdown */	NULL,
 };
 
+static uint8_t
+get_id_from_device(device_t dev)
+{
+	char devname[10];
+
+	device_name(dev, devname);
+	if (devname[3] == 'c')
+		return 0xff;
+
+	/* device name should be net[0-9] */
+	return (devname[3] - '0');
+}
+
+static int
+net_init(struct driver *self)
+{
+	struct net_driver *nd;
+	struct net_softc *nc;
+	device_t dev;
+	int id = 0;
+
+	dev = device_create(self, "netc", D_NET);
+	if (!dev) {
+		return ENODEV;
+	}
+
+	nc = device_private(dev);
+
+	list_t  n, head = &netdrv_list;
+	for (n = list_first(&netdrv_list); n != head;
+	     n = list_next(n)) {
+		int ret;
+		char name[20];
+		nd = list_entry(n, struct net_driver, link);
+
+		sprintf(name, "net%d", id);
+		nd->id = id;
+		nd->driver->devops = &net_devops;
+		nc->net_devs[id] =
+			device_create(nd->driver,  name, D_NET);
+
+		ret = nd->ops->init(nd);
+		if (ret) {
+			device_destroy(nc->net_devs[id]);
+			continue;
+		}
+		nc->net_drvs[id] = nd;
+
+		id++;
+		if (id >= MAX_NET_DEVS)
+			break;
+	}
+	nc->nrdevs = id;
+	net_softc = nc;
+
+	return 0;
+}
+
+static int net_open(device_t dev, int mode)
+{
+	int id = get_id_from_device(dev);
+	struct net_softc *nc = net_softc;
+
+	if (!task_capable(CAP_NETWORK))
+		return EPERM;
+	if (id == 0xff) {
+		if (nc->isopen)
+			return EBUSY;
+		else {
+			nc->isopen = 1;
+			return 0;
+		}
+	} else {
+		struct net_driver *drv =  	
+			nc->net_drvs[id];
+		if (drv->isopen)
+			return EBUSY;
+		drv->isopen = 1;
+	}
+
+	return 0;
+}
+
+static int net_close(device_t dev)
+{
+	int id = get_id_from_device(dev);
+	struct net_softc *nc = net_softc;
+
+	if (!task_capable(CAP_NETWORK))
+		return EPERM;
+	if (id == 0xff) {
+		nc->isopen = 0;
+	} else {
+		struct net_driver *drv =  	
+			nc->net_drvs[id];
+		drv->isopen = 0;
+	}
+
+	return 0;
+}
+
+static int net_ioctl(device_t dev, u_long cmd, void *args)
+{
+	int id = get_id_from_device(dev);
+	struct net_softc *nc = net_softc;
+	struct net_driver *nd = nc->net_drvs[id];
+
+	if (!task_capable(CAP_NETWORK))
+		return EPERM;
+	switch (cmd) {
+
+	case NETIO_QUERY_NR_IF:
+		if (copyout(&nc->nrdevs, args, sizeof(nc->nrdevs)))
+			return EFAULT;
+		break;
+	case NETIO_GET_IF_CAPS:	
+		break;
+	case NETIO_GET_STATUS:
+		break;
+	case NETIO_START:
+		nd->ops->start(nd);
+		break;
+	case NETIO_STOP:
+		nd->ops->stop(nd);
+		break;
+	case NETIO_ALLOC_BUF:
+	{
+		uint16_t nbufs;
+		if (copyin(args, &nbufs, sizeof(nbufs)))
+			return EFAULT;
+		if (dbuf_pool_init(nd, nbufs))
+			return ENOMEM;
+		break;
+	}
+	case NETIO_DROP_BUF:
+		break;
+	case NETIO_SEND:
+	{
+		dbuf_t dbuf;
+		if (copyin(args, &dbuf, sizeof(dbuf_t)))
+			return EFAULT;
+		nd->ops->transmit(nd, dbuf);
+		break;
+	}
+	case NETIO_RECV:
+	{
+		dbuf_t dbuf;
+		if (dbuf_remove(nd, &dbuf))
+			return EFAULT;
+		/* map the buffer to user space */
+		break;
+	}
+	default:
+		return EINVAL;
+	};
+	return 0;
+}
+
+static int net_devctl(device_t dev, u_long cmd, void *args)
+{
+	return 0;
+}
+
+/* exported interface */
 int
 netdrv_attach(struct netdrv_ops *ops, struct driver *driver,
 	      netif_type_t type)
@@ -65,106 +230,7 @@ void *
 netdrv_private(struct net_driver *driver)
 {
 	device_t dev;
-	struct net_softc *nc;
-	nc = driver->nc;
+	struct net_softc *nc = net_softc;
 	dev = nc->net_devs[driver->id];
 	return device_private(dev);
-}
-
-static int
-net_init(struct driver *self)
-{
-	struct net_driver *nd;
-	struct net_softc *nc;
-	device_t dev;
-	int id = 0;
-
-	dev = device_create(self, "netc", D_NET);
-	if (!dev) {
-		return ENODEV;
-	}
-
-	nc = device_private(dev);
-	nc->dev = dev;
-
-	list_t  n, head = &netdrv_list;
-	for (n = list_first(&netdrv_list); n != head;
-	     n = list_next(n)) {
-		int ret;
-		char name[20];
-		nd = list_entry(n, struct net_driver, link);
-
-		sprintf(name, "net%d", id);
-		nd->id = id;
-		nd->nc = nc;
-		nd->driver->devops = &net_devops;
-		nc->net_devs[id] = device_create(nd->driver,
-						 name, D_NET);
-
-		ret = nd->ops->init(nd);
-		if (ret) {
-			device_destroy(nc->net_devs[id]);
-			continue;
-		}
-		nc->net_drvs[id] = nd;
-
-		/**** for test *****/
-		/* initialize dbuf subsystem */
-		dbuf_pool_init(nd, NUM_DBUFS_IN_POOL);
-		nd->ops->start(nd);
-		/*******************/
-
-		id++;
-		if (id >= MAX_NET_DEVS)
-			break;
-	}
-
-	return 0;
-}
-
-static int net_open(device_t dev, int mode)
-{
-	if (!task_capable(CAP_NETWORK))
-		return EPERM;
-	return 0;
-}
-
-static int net_close(device_t dev)
-{
-	return 0;
-}
-
-static int net_ioctl(device_t dev, u_long cmd, void *args)
-{
-	if (!task_capable(CAP_NETWORK))
-		return EPERM;
-	switch (cmd) {
-
-	case NETIO_QUERY_NR_IF:
-		break;
-	case NETIO_GET_IF_CAPS:
-		break;
-	case NETIO_GET_STATUS:
-		break;
-	case NETIO_START:
-		break;
-	case NETIO_STOP:
-		break;
-	case NETIO_ALLOC_BUF:
-		break;
-	case NETIO_DROP_BUF:
-		break;
-	case NETIO_SEND:
-		break;
-	case NETIO_RECV:
-		break;
-	default:
-		return EINVAL;
-	};
-	return 0;
-}
-
-static int net_devctl(device_t dev, u_long cmd, void *args)
-{
-	return 0;
 }

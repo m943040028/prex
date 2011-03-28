@@ -64,6 +64,7 @@ static void	device_release(device_t);
 static void	*device_private(device_t);
 static int	device_control(device_t, u_long, void *);
 static int	device_broadcast(u_long, void *, int);
+static void	device_name(device_t, char *);
 
 #define DKIENT(func)	(dkifn_t)(func)
 
@@ -102,18 +103,19 @@ static const dkifn_t dkient[] = {
 	/* 28 */ DKIENT(device_control),
 	/* 29 */ DKIENT(device_broadcast),
 	/* 30 */ DKIENT(device_private),
-	/* 31 */ DKIENT(machine_bootinfo),
-	/* 32 */ DKIENT(machine_powerdown),
-	/* 33 */ DKIENT(sysinfo),
-	/* 34 */ DKIENT(vsprintf),
+	/* 31 */ DKIENT(device_name),
+	/* 32 */ DKIENT(machine_bootinfo),
+	/* 33 */ DKIENT(machine_powerdown),
+	/* 34 */ DKIENT(sysinfo),
+	/* 35 */ DKIENT(vsprintf),
 #ifdef DEBUG
-	/* 35 */ DKIENT(panic),
-	/* 36 */ DKIENT(printf),
-	/* 37 */ DKIENT(dbgctl),
+	/* 36 */ DKIENT(panic),
+	/* 37 */ DKIENT(printf),
+	/* 38 */ DKIENT(dbgctl),
 #else
-	/* 35 */ DKIENT(machine_abort),
-	/* 36 */ DKIENT(sys_nosys),
+	/* 36 */ DKIENT(machine_abort),
 	/* 37 */ DKIENT(sys_nosys),
+	/* 38 */ DKIENT(sys_nosys),
 #endif
 };
 
@@ -284,6 +286,17 @@ device_release(device_t dev)
 	}
 	kmem_free(dev);
 	sched_unlock();
+}
+
+/*
+ * device_name - get device name.
+ *
+ * Exported as DKI for device drivers
+ */
+static void
+device_name(device_t dev, char *namep)
+{
+	strlcpy(namep, dev->name, sizeof(dev->name));
 }
 
 /*

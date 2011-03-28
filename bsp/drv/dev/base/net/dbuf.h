@@ -43,6 +43,7 @@ struct dbuf {
 
 __BEGIN_DECLS
 int dbuf_pool_init(struct net_driver *, int);
+int dbuf_remove(struct net_driver *, dbuf_t *);
 __END_DECLS
 
 #endif /* _DBUF_H_ */

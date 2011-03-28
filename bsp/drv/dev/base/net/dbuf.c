@@ -77,7 +77,7 @@ dbuf_request(struct net_driver *driver, dbuf_t *buf)
 	return 0;
 }
 
-/* add a recevied buffer to datagram queue to dbuf pool */
+/* add a received buffer to dbuf pool */
 int
 dbuf_add(struct net_driver *driver, dbuf_t buf)
 {
@@ -86,6 +86,22 @@ dbuf_add(struct net_driver *driver, dbuf_t buf)
 	dbuf->state = DB_READY;
 
 	enqueue(&driver->rx_queue, &dbuf->link);
+	return 0;
+}
+
+/* remove a received buffer from dbuf pool */
+int
+dbuf_remove(struct net_driver *driver, dbuf_t *buf)
+{
+	struct dbuf *dbuf;
+	queue_t n;
+
+	ASSERT(buf != NULL);
+	n = dequeue(&driver->rx_queue);
+	if (!n)
+		return ENOENT;
+	dbuf = queue_entry(n, struct dbuf, link);
+	*buf = (dbuf_t)dbuf;
 	return 0;
 }
 

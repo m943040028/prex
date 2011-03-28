@@ -11,12 +11,13 @@ struct net_driver {
 	netif_type_t            interface;
 	int                     id;
 	struct list             link;
-	struct net_softc        *nc;
 
 	/* per-device dbuf pool */
 	struct queue    free_list;
 	struct queue    rx_queue;
 	struct queue    tx_queue;
+
+	int		isopen;
 };
 
 #endif

@@ -7,8 +7,7 @@
 #include "dbuf.h"
 #include "netdrv.h"
 
-#define MAX_NET_DEVS		4
-#define NUM_DBUFS_IN_POOL	256
+#define MAX_NET_DEVS		10
 
 static int net_open(device_t, int);
 static int net_close(device_t);
@@ -71,6 +70,7 @@ net_init(struct driver *self)
 	}
 
 	nc = device_private(dev);
+	net_softc = nc;
 
 	list_t  n, head = &netdrv_list;
 	for (n = list_first(&netdrv_list); n != head;
@@ -91,13 +91,13 @@ net_init(struct driver *self)
 			continue;
 		}
 		nc->net_drvs[id] = nd;
+		netdrv_buf_pool_init(nd);
 
 		id++;
 		if (id >= MAX_NET_DEVS)
 			break;
 	}
 	nc->nrdevs = id;
-	net_softc = nc;
 
 	return 0;
 }
@@ -117,7 +117,7 @@ static int net_open(device_t dev, int mode)
 			return 0;
 		}
 	} else {
-		struct net_driver *drv =  	
+		struct net_driver *drv =
 			nc->net_drvs[id];
 		if (drv->isopen)
 			return EBUSY;
@@ -137,7 +137,7 @@ static int net_close(device_t dev)
 	if (id == 0xff) {
 		nc->isopen = 0;
 	} else {
-		struct net_driver *drv =  	
+		struct net_driver *drv =
 			nc->net_drvs[id];
 		drv->isopen = 0;
 	}
@@ -150,6 +150,7 @@ static int net_ioctl(device_t dev, u_long cmd, void *args)
 	int id = get_id_from_device(dev);
 	struct net_softc *nc = net_softc;
 	struct net_driver *nd = nc->net_drvs[id];
+	dbuf_t dbuf;
 
 	if (!task_capable(CAP_NETWORK))
 		return EPERM;
@@ -169,33 +170,26 @@ static int net_ioctl(device_t dev, u_long cmd, void *args)
 	case NETIO_STOP:
 		nd->ops->stop(nd);
 		break;
-	case NETIO_ALLOC_BUF:
-	{
-		uint16_t nbufs;
-		if (copyin(args, &nbufs, sizeof(nbufs)))
-			return EFAULT;
-		if (dbuf_pool_init(nd, nbufs))
-			return ENOMEM;
-		break;
-	}
-	case NETIO_DROP_BUF:
-		break;
-	case NETIO_SEND:
-	{
-		dbuf_t dbuf;
+	case NETIO_TX_QBUF:
 		if (copyin(args, &dbuf, sizeof(dbuf_t)))
 			return EFAULT;
 		nd->ops->transmit(nd, dbuf);
 		break;
-	}
-	case NETIO_RECV:
-	{
-		dbuf_t dbuf;
-		if (dbuf_remove(nd, &dbuf))
+	case NETIO_RX_QBUF:
+		if (copyin(args, &dbuf, sizeof(dbuf_t)))
 			return EFAULT;
-		/* map the buffer to user space */
+		netdrv_q_rxbuf(nd, dbuf);
 		break;
-	}
+	case NETIO_TX_DQBUF:
+		if (netdrv_dq_rxbuf(nd, &dbuf))
+			return ENOMEM;
+		/* fall through */
+	case NETIO_RX_DQBUF:
+		if (netdrv_dq_rxbuf(nd, &dbuf))
+			return ENOMEM;
+		if (copyout(&dbuf, args, sizeof(dbuf_t)))
+			return EFAULT;
+		break;
 	default:
 		return EINVAL;
 	};

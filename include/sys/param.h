@@ -91,6 +91,7 @@
 #define PRI_EXEC	125	/* exec server */
 #define PRI_FS		126	/* file system server */
 #define PRI_POW		100	/* power server */
+#define PRI_NET		90	/* net server */
 
 #ifndef	NULL
 #if !defined(__cplusplus)

@@ -116,10 +116,10 @@ struct __timeval {
 #define NETIO_GET_STATUS	_IOR('D', 2, struct net_if_status)
 #define NETIO_START		_IOR('D', 3, 0)
 #define NETIO_STOP		_IOR('D', 4, 0)
-#define NETIO_ALLOC_BUF		_IOR('D', 5, int)
-#define NETIO_DROP_BUF		_IOR('D', 6, 0)
-#define NETIO_SEND		_IOR('D', 7, vaddr_t)
-#define NETIO_RECV		_IOR('D', 8, vaddr_t)
+#define NETIO_RX_QBUF		_IOR('D', 5, vaddr_t)
+#define NETIO_RX_DQBUF		_IOR('D', 6, vaddr_t)
+#define NETIO_TX_QBUF		_IOR('D', 7, vaddr_t)
+#define NETIO_TX_DQBUF		_IOR('D', 8, vaddr_t)
 
 struct net_if_caps {
 	netif_type_t	type;

@@ -36,6 +36,7 @@ usr/sbin/pmctrl/pmctrl
 usr/server/boot/boot
 usr/server/exec/exec
 usr/server/fs/fs
+usr/server/net/net
 usr/server/pow/pow
 usr/server/proc/proc
 usr/test/args/args

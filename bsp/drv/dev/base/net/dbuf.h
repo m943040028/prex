@@ -29,21 +29,11 @@ typedef enum dbuf_state {
 	DB_READY        = 0x0002,
 } dbuf_state_t;
 
-struct dbuf {
-#define DATAGRAM_HDR_MAGIC	0x9a0a
-	uint16_t	magic;
-	uint16_t	index;
-	dbuf_state_t	state;
-	uint8_t		buf_pages;/* memory pages per datagram_buffer */
-	uint8_t		buf_align;/* alignment in buffer for performance */
-	void 		*data_start; /* address of the data buffer */
-	size_t		data_length; /* actual data length */
-	struct queue	link;
-};
-
 __BEGIN_DECLS
-int dbuf_pool_init(struct net_driver *, int);
-int dbuf_remove(struct net_driver *, dbuf_t *);
+int netdrv_buf_pool_init(struct net_driver *);
+int netdrv_q_rxbuf(struct net_driver *, dbuf_t);
+int netdrv_dq_rxbuf(struct net_driver *, dbuf_t *);
+int netdrv_dq_txbuf(struct net_driver *, dbuf_t *);
 __END_DECLS
 
 #endif /* _DBUF_H_ */

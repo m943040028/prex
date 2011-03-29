@@ -6,46 +6,85 @@
 #include "dbuf.h"
 #include "netdrv.h"
 
-static struct dbuf *
-dbuf_alloc(int nr_pages)
+struct dbuf {
+#define DATAGRAM_HDR_MAGIC      0x9a0a
+	uint16_t        magic;
+	uint16_t        index;
+	void            *data_start; /* address of the data buffer */
+	size_t          data_length; /* actual data length */
+	dbuf_state_t    state;
+	uint8_t         buf_pages;/* memory pages per datagram_buffer */
+	uint8_t         buf_align;/* alignment in buffer for performance */
+	struct queue    link;
+};
+
+static int
+add_free_buf(struct net_driver *driver, dbuf_t buf)
 {
-	paddr_t p;
-	struct dbuf *buf;
-	if ((p = page_alloc(nr_pages*PAGE_SIZE)) == 0)
-		return NULL;
+	struct dbuf *dbuf = (struct dbuf *)buf;
+	ASSERT(dbuf->magic == DATAGRAM_HDR_MAGIC);
+	dbuf->state = DB_FREE;
 
-	buf = ptokv(p);
-	memset(buf, 0, nr_pages*PAGE_SIZE);
-	buf->magic = DATAGRAM_HDR_MAGIC;
-	buf->state = DB_FREE;
-	buf->buf_pages = nr_pages;
-	/* FIXME */
-	buf->data_start = buf + 1024;
-	queue_init(&buf->link);
-
-	return buf;
-}
-
-int
-dbuf_pool_init(struct net_driver *driver, int num_dbufs)
-{
-	int i;
-
-	queue_init(&driver->free_list);
-	queue_init(&driver->tx_queue);
-	queue_init(&driver->rx_queue);
-
-	for (i = 0; i < num_dbufs; i++)
-	{
-		struct dbuf *buf;
-		/* give 1 page buffer as default size */
-		buf = dbuf_alloc(1);
-		if (!buf)
-			return ENOMEM;
-		enqueue(&driver->free_list, &buf->link);
-	}
+	enqueue(&driver->pool.free_list, &dbuf->link);
 	return 0;
 }
+
+static int
+request_free_buf(struct net_driver *driver, dbuf_t *buf)
+{
+	struct dbuf *dbuf;
+	queue_t q;
+
+	q = dequeue(&driver->pool.free_list);
+	if (!q)
+		return ENOMEM;
+	dbuf = queue_entry(q, struct dbuf, link);
+
+	*buf = (dbuf_t)dbuf;
+	return 0;
+}
+
+/* Interface to network coordinator */
+int
+netdrv_buf_pool_init(struct net_driver *driver)
+{
+	queue_init(&driver->pool.free_list);
+	queue_init(&driver->pool.tx_queue);
+	queue_init(&driver->pool.rx_queue);
+
+	return 0;
+}
+
+/* remove a received buffer from dbuf pool */
+int
+netdrv_dq_rxbuf(struct net_driver *driver, dbuf_t *buf)
+{
+	struct dbuf *dbuf;
+	queue_t n;
+
+	ASSERT(buf != NULL);
+	n = dequeue(&driver->pool.rx_queue);
+	if (!n)
+		return ENOENT;
+	dbuf = queue_entry(n, struct dbuf, link);
+	*buf = (dbuf_t)dbuf;
+	return 0;
+}
+
+/* add a buffer to free_list to be requested by device driver */
+int
+netdrv_q_rxbuf(struct net_driver *driver, dbuf_t buf)
+{
+	return add_free_buf(driver, buf);
+}
+
+/* remove a buffer from free_list for transmit */
+int
+netdrv_dq_txbuf(struct net_driver *driver, dbuf_t *buf)
+{
+	return request_free_buf(driver, buf);
+}
+/* end of exported API */
 
 /* DDI interface, used by network device drivers */
 
@@ -53,28 +92,14 @@ dbuf_pool_init(struct net_driver *driver, int num_dbufs)
 int
 dbuf_release(struct net_driver *driver, dbuf_t buf)
 {
-	struct dbuf *dbuf = (struct dbuf *)buf;
-	ASSERT(dbuf->magic == DATAGRAM_HDR_MAGIC);
-	dbuf->state = DB_FREE;
-
-	enqueue(&driver->free_list, &dbuf->link);
-	return 0;
+	return add_free_buf(driver, buf);
 }
 
 /* request an empty buffer for receving from dbuf pool */
 int
 dbuf_request(struct net_driver *driver, dbuf_t *buf)
 {
-	struct dbuf *dbuf;
-	queue_t q;
-
-	q = dequeue(&driver->free_list);
-	if (!q)
-		return ENOMEM;
-	dbuf = queue_entry(q, struct dbuf, link);
-
-	*buf = (dbuf_t)dbuf;
-	return 0;
+	return request_free_buf(driver, buf);
 }
 
 /* add a received buffer to dbuf pool */
@@ -85,23 +110,7 @@ dbuf_add(struct net_driver *driver, dbuf_t buf)
 	ASSERT(dbuf->magic == DATAGRAM_HDR_MAGIC);
 	dbuf->state = DB_READY;
 
-	enqueue(&driver->rx_queue, &dbuf->link);
-	return 0;
-}
-
-/* remove a received buffer from dbuf pool */
-int
-dbuf_remove(struct net_driver *driver, dbuf_t *buf)
-{
-	struct dbuf *dbuf;
-	queue_t n;
-
-	ASSERT(buf != NULL);
-	n = dequeue(&driver->rx_queue);
-	if (!n)
-		return ENOENT;
-	dbuf = queue_entry(n, struct dbuf, link);
-	*buf = (dbuf_t)dbuf;
+	enqueue(&driver->pool.rx_queue, &dbuf->link);
 	return 0;
 }
 
@@ -136,3 +145,4 @@ dbuf_set_data_length(dbuf_t buf, uint16_t length)
 	ASSERT(dbuf->magic == DATAGRAM_HDR_MAGIC);
 	dbuf->data_length = length;
 }
+/* end of DDI interface */

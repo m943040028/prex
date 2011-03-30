@@ -43,17 +43,64 @@ interface_name(netif_type_t type)
 	return interface_type[type];
 }
 
+/*
+ * Wait until specified server starts.
+ */
+static void
+wait_server(const char *name, object_t *pobj)
+{
+	int i, error = 0;
+
+	/* Give chance to run other servers. */
+	thread_yield();
+
+	/*
+	 * Wait for server loading. timeout is 1 sec.
+	 */
+	for (i = 0; i < 100; i++) {
+		error = object_lookup((char *)name, pobj);
+		if (error == 0)
+			break;
+
+		/* Wait 10msec */
+		timer_sleep(10, 0);
+		thread_yield();
+	}
+	if (error)
+		sys_panic("pow: server not found");
+}
+
+static void
+allocate_mbuf(void)
+{
+}
+
 int
 main(int argc, char *argv[])
 {
 	device_t netc;
 	struct net_priv *priv;
+	struct bind_msg bm;
+	object_t execobj;
 	int num_if, i;
 
 	sys_log("Starting net server\n");
 
 	/* Boost thread priority. */
 	thread_setpri(thread_self(), PRI_NET);
+
+	/*
+	 * Wait until all required system servers
+	 * become available.
+	 */
+	wait_server("!exec", &execobj);
+
+	/*
+	 * Request to bind a new capabilities for us.
+	 */
+	bm.hdr.code = EXEC_BINDCAP;
+	strlcpy(bm.path, "/boot/net", sizeof(bm.path));
+	msg_send(execobj, &bm, sizeof(bm));
 
 	/*
 	 * Connect to the network coordinator
@@ -70,7 +117,7 @@ main(int argc, char *argv[])
 	priv->num_if = num_if;
 	priv->devs = malloc(sizeof(device_t) * num_if);
 
-	DPRINTF(("net: %d interface probed:", num_if));
+	DPRINTF(("net: %d interface probed:\n", num_if));
 	for (i = 0; i < num_if; i++) {
 		char name[10];
 		struct net_if_caps caps;
@@ -81,6 +128,8 @@ main(int argc, char *argv[])
 			interface_name(caps.type), caps.mtu));
 	}
 
+	allocate_mbuf();
 	for (;;);
+
 	return 0;
 }

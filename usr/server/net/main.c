@@ -26,10 +26,24 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct net_priv {
-	device_t *devs;
-	int num_if;
+struct netif {
+	device_t dev;
+	int mtu;
+	netif_type_t type;
+	int nr_txbufs;
+	int nr_rxbufs;
 };
+struct net_state {
+	int num_if;
+	struct netif *nif;
+};
+
+static struct net_state ns;
+
+/* configurable parameters */
+#define DEF_NR_TXBUF	32
+#define DEF_NR_RXBUF	32
+
 
 static char
 interface_type[][20] =
@@ -67,11 +81,11 @@ wait_server(const char *name, object_t *pobj)
 		thread_yield();
 	}
 	if (error)
-		sys_panic("pow: server not found");
+		sys_panic("net: server not found");
 }
 
 static void
-allocate_mbuf(void)
+allocate_dbuf(struct netif *netif)
 {
 }
 
@@ -79,7 +93,6 @@ int
 main(int argc, char *argv[])
 {
 	device_t netc;
-	struct net_priv *priv;
 	struct bind_msg bm;
 	object_t execobj;
 	int num_if, i;
@@ -113,22 +126,26 @@ main(int argc, char *argv[])
 	}
 
 	device_ioctl(netc, NETIO_QUERY_NR_IF, &num_if);
-	priv = malloc(sizeof(struct net_priv));
-	priv->num_if = num_if;
-	priv->devs = malloc(sizeof(device_t) * num_if);
+	ns.num_if = num_if;
+	ns.nif = malloc(sizeof(struct netif *) * num_if);
 
 	DPRINTF(("net: %d interface probed:\n", num_if));
 	for (i = 0; i < num_if; i++) {
 		char name[10];
 		struct net_if_caps caps;
+		struct netif *nif = &ns.nif[i];
+	
 		sprintf(name, "net%d", i);
-		device_open(name, 0, &priv->devs[i]);
-		device_ioctl(priv->devs[i], NETIO_GET_IF_CAPS, &caps);
+		device_open(name, 0, &nif->dev);
+		device_ioctl(nif->dev, NETIO_GET_IF_CAPS, &caps);
+
 		DPRINTF(("  %s, mtu %d\n", 
 			interface_name(caps.type), caps.mtu));
+		nif->mtu = caps.mtu;
+		nif->type = caps.type;
+		allocate_dbuf(nif);
 	}
 
-	allocate_mbuf();
 	for (;;);
 
 	return 0;

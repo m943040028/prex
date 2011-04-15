@@ -9,13 +9,12 @@
 struct dbuf {
 #define DATAGRAM_HDR_MAGIC      0x9a0a
 	uint16_t        magic;
-	uint16_t        index;
 	void            *data_start; /* address of the data buffer */
 	size_t          data_length; /* actual data length */
+	struct queue    link;
 	dbuf_state_t    state;
 	uint8_t         buf_pages;/* memory pages per datagram_buffer */
 	uint8_t         buf_align;/* alignment in buffer for performance */
-	struct queue    link;
 };
 
 static int
@@ -30,7 +29,7 @@ add_free_buf(struct net_driver *driver, dbuf_t buf)
 }
 
 static int
-request_free_buf(struct net_driver *driver, dbuf_t *buf)
+remove_free_buf(struct net_driver *driver, dbuf_t *buf)
 {
 	struct dbuf *dbuf;
 	queue_t q;
@@ -82,7 +81,7 @@ netdrv_q_rxbuf(struct net_driver *driver, dbuf_t buf)
 int
 netdrv_dq_txbuf(struct net_driver *driver, dbuf_t *buf)
 {
-	return request_free_buf(driver, buf);
+	return remove_free_buf(driver, buf);
 }
 /* end of exported API */
 
@@ -99,7 +98,7 @@ dbuf_release(struct net_driver *driver, dbuf_t buf)
 int
 dbuf_request(struct net_driver *driver, dbuf_t *buf)
 {
-	return request_free_buf(driver, buf);
+	return remove_free_buf(driver, buf);
 }
 
 /* add a received buffer to dbuf pool */

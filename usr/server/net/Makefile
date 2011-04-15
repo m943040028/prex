@@ -8,7 +8,6 @@ SRCS:=		main.c \
 		lwip/src/api/netbuf.c \
 		lwip/src/api/netdb.c \
 		lwip/src/api/netifapi.c \
-		lwip/src/api/sockets.c \
 		lwip/src/api/tcpip.c \
 		lwip/src/core/init.c \
 		lwip/src/core/tcp_in.c \

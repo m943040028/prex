@@ -2,6 +2,7 @@
 #define LWIP_ARCH_CC_H
 
 #include <sys/types.h>
+#include <sys/errno.h>
 #include <assert.h>
 
 typedef uint32_t u32_t;

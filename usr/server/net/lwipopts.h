@@ -12,8 +12,9 @@
 #define LWIP_STATS_DISPLAY	0
 #define LWIP_DHCP		1
 #define LWIP_COMPAT_SOCKETS	0
+#define LWIP_SOCKET		0
 /*#define SYS_LIGHTWEIGHT_PROT	1*/
-#define LWIP_PROVIDE_ERRNO      1
+/*#define LWIP_PROVIDE_ERRNO	1*/
 
 /* Various tuning knobs, see:
    http://lists.gnu.org/archive/html/lwip-users/2006-11/msg00007.html */

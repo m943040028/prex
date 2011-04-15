@@ -40,14 +40,7 @@
 #include <lwip/snmp.h>
 #include <netif/etharp.h>
 
-/**
- * Helper struct to hold private data used to operate your ethernet interface.
- * Keeping the ethernet address of the MAC in this struct is not necessary
- * as it is already kept in the struct netif.
- * But this is only an example, anyway...
- */
-struct pif { 
-};
+#include "pif.h"
 
 /**
  * In this function, the hardware should be initialized.
@@ -59,7 +52,7 @@ struct pif {
 static void
 low_level_init(struct netif *netif)
 {
-	/*struct pif *pif = netif->state;*/
+	struct pif *pif = netif->state;
 
 	/* set MAC hardware address length */
 	netif->hwaddr_len = ETHARP_HWADDR_LEN;
@@ -73,10 +66,9 @@ low_level_init(struct netif *netif)
 	netif->hwaddr[5] = 0x56;
 
 	/* maximum transfer unit */
-	netif->mtu = 1500;
+	netif->mtu = pif->mtu;
 
 	/* device capabilities */
-	/* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
 	netif->flags = NETIF_FLAG_BROADCAST |
 		       NETIF_FLAG_ETHARP | 
 		       NETIF_FLAG_LINK_UP;
@@ -231,17 +223,11 @@ pif_input(struct netif *netif)
  *         any other err_t on error
  */
 err_t
-pif_init(struct netif *netif, char *name)
+pif_init(struct netif *netif)
 {
-	struct pif *pif;
+	struct pif *pif = netif->state;
 
 	LWIP_ASSERT("netif != NULL", (netif != NULL));
-
-	pif = mem_malloc(sizeof(struct pif));
-	if (pif == NULL) {
-		LWIP_DEBUGF(NETIF_DEBUG, ("pif_init: out of memory\n"));
-		return ERR_MEM;
-	}
 
 #if LWIP_NETIF_HOSTNAME
 	/* Initialize interface hostname */
@@ -258,8 +244,7 @@ pif_init(struct netif *netif, char *name)
 			LINK_SPEED_OF_YOUR_NETIF_IN_BPS);
 #endif
 
-	netif->state = pif;
-	strncpy(netif->name, name, sizeof(netif->name));
+	strncpy(netif->name, pif->name, sizeof(pif->name));
 
 	/* We directly use etharp_output() here to save a function call.
 	 * You can instead declare your own function an call etharp_output()

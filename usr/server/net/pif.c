@@ -40,6 +40,11 @@
 #include <lwip/snmp.h>
 #include <netif/etharp.h>
 
+#include <sys/prex.h>
+#include <sys/ioctl.h>
+#include <sys/list.h>
+#include <sys/net.h>
+
 #include "pif.h"
 
 /**
@@ -72,6 +77,20 @@ low_level_init(struct netif *netif)
 	netif->flags = NETIF_FLAG_BROADCAST |
 		       NETIF_FLAG_ETHARP | 
 		       NETIF_FLAG_LINK_UP;
+
+	/* queue rx buffers */
+	while (pif->free_rxbufs) {
+		dbuf_t buf;
+		list_t n;
+		n = list_first(&pif->rx_free_list);
+		list_remove(n);
+		buf = list_entry(n, struct dbuf_user, link);
+		device_ioctl(pif->dev, NETIO_RX_QBUF, buf);
+		pif->free_rxbufs--;
+	}
+
+	/* bring up device */
+	device_ioctl(pif->dev, NETIO_START, NULL);
 }
 
 /**

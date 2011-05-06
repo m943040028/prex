@@ -35,6 +35,18 @@
 
 #include "pif.h"
 
+/*
+ * Message mapping
+ */
+struct msg_map {
+	int	code;
+	int	(*func)(struct msg *);
+};
+
+static const struct msg_map netmsg_map[] = {
+	{0,	0},
+};
+
 struct net_state {
 	int num_if;
 	struct pif *pif;
@@ -89,9 +101,9 @@ allocate_dbuf(struct pif *pif)
 	list_init(&pif->tx_free_list);
 	list_init(&pif->rx_free_list);
 
+	/* allocate TX buffers */
 	for (i = 0; i < DEF_NR_TXBUF; i++)
 	{
-		/* allocate TX buffers */
 		vm_allocate(task_self(),
 			    (void *)&pif->tx_buf[i], PAGE_SIZE, 1);
 		dbuf = pif->tx_buf[i];
@@ -101,9 +113,9 @@ allocate_dbuf(struct pif *pif)
 	}
 	pif->free_txbufs = DEF_NR_TXBUF;
 
+	/* allocate RX buffers */
 	for (i = 0; i < DEF_NR_RXBUF; i++)
 	{
-		/* allocate RX buffers */
 		vm_allocate(task_self(),
 			    (void *)&pif->rx_buf[i], PAGE_SIZE, 1);
 		dbuf = pif->rx_buf[i];
@@ -119,8 +131,8 @@ main(int argc, char *argv[])
 {
 	device_t netc;
 	struct bind_msg bm;
-	object_t execobj;
-	int num_if, i;
+	object_t execobj, netobj;
+	int num_if, error, i;
 
 	sys_log("Starting net server\n");
 
@@ -152,7 +164,7 @@ main(int argc, char *argv[])
 
 	device_ioctl(netc, NETIO_QUERY_NR_IF, &num_if);
 	ns.num_if = num_if;
-	ns.pif = malloc(sizeof(struct netif *) * num_if);
+	ns.pif = malloc(sizeof(struct pif) * num_if);
 
 	DPRINTF(("net: %d interface probed:\n", num_if));
 	for (i = 0; i < num_if; i++) {
@@ -163,24 +175,66 @@ main(int argc, char *argv[])
 		ipaddr.addr  = inet_addr("10.0.2.15");
 		netmask.addr = inet_addr("255.255.255.0");
 		gateway.addr = inet_addr("10.0.2.2");	
-DPRINTF(("pif=%08x\n", (uint32_t)pif));
-DPRINTF(("pif->dev=%08x\n", (uint32_t)&pif->dev));
 
 		sprintf(name, "net%d", i);
 		device_open(name, 0, &pif->dev);
 		device_ioctl(pif->dev, NETIO_GET_IF_CAPS, &caps);
-		DPRINTF(("  %s, mtu %d\n", 
-			interface_name(caps.type), caps.mtu));
+		DPRINTF(("  %s: type %s, mtu %d\n", 
+			name, interface_name(caps.type), caps.mtu));
 		strncpy(pif->name, name, sizeof(name));
 		pif->mtu = caps.mtu;
 		pif->type = caps.type;
+
+		/* allocate buffer pool */
 		allocate_dbuf(pif);
 
 		if (0 == netif_add(&pif->nif, &ipaddr, &netmask, &gateway,
 				   pif, pif_init, ip_input))
 			panic("lwip_init: error in netif_add\n");
 	}
-	for (;;);
+
+	error = object_create("!net", &netobj);
+	if (error)
+		sys_panic("fail to create object");
+
+	/*
+	 * Message loop
+	 */
+	for (;;) {
+		/*
+		 * Wait for an incoming request.
+		 */
+		struct msg msg;
+		const struct msg_map *map;
+		error = msg_receive(netobj, &msg, sizeof(msg));
+		if (error)
+			continue;
+
+		DPRINTF(("net: msg code=%x task=%x\n",
+			 msg.hdr.code, msg.hdr.task));
+
+
+		/* Check client's capability. */
+		if (task_chkcap(msg.hdr.task, CAP_NETWORK) != 0) {
+			map = NULL;
+			error = EPERM;
+		} else {
+			error = EINVAL;
+			map = &netmsg_map[0];
+			while (map->code != 0) {
+				if (map->code == msg.hdr.code) {
+					error = (*map->func)(&msg);
+					break;
+				}
+				map++;
+			}
+		}
+		/*
+		 * Reply to the client.
+		 */
+		msg.hdr.status = error;
+		msg_reply(netobj, &msg, sizeof(msg));
+	}
 
 	return 0;
 }

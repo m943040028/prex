@@ -60,9 +60,6 @@
 __BEGIN_DECLS
 void	 trap_handler(struct cpu_regs *);
 void	 trap_dump(struct cpu_regs *);
-#if defined(CONFIG_DEBUG_CONTEXT_SWITCH)
-void	 trap_unit_test(struct cpu_regs *);
-#endif
 __END_DECLS
 
 #endif /* !__ASSEMBLY__ */

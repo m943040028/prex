@@ -1,11 +1,50 @@
+/*-
+ * Copyright (c) 2011 Sheng-Yu Chiu
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the author nor the names of any co-contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/* net.c - the Network Coordinator */
+
+/*#define DEBUG			1*/
+#define MODULE_NAME		"netc"
+
 #include <driver.h>
 #include <sys/list.h>
 #include <sys/queue.h>
 #include <sys/ioctl.h>
+#include <sys/dbg.h>
 #include <net.h>
 
 #include "dbuf.h"
 #include "netdrv.h"
+
+#ifdef DEBUG
+static int debugflags = DBGBIT(INFO) | DBGBIT(TRACE);
+#endif
 
 #define MAX_NET_DEVS		10
 
@@ -152,6 +191,7 @@ static int net_ioctl(device_t dev, u_long cmd, void *args)
 	struct net_driver *nd = nc->net_drvs[id];
 	dbuf_t dbuf;
 
+	LOG_FUNCTION_NAME_ENTRY();
 	if (!task_capable(CAP_NETWORK))
 		return EPERM;
 	switch (cmd) {
@@ -181,9 +221,11 @@ static int net_ioctl(device_t dev, u_long cmd, void *args)
 		netdrv_q_rxbuf(nd, dbuf);
 		break;
 	case NETIO_TX_DQBUF:
-		if (netdrv_dq_rxbuf(nd, &dbuf))
+		if (netdrv_dq_txbuf(nd, &dbuf))
 			return ENOMEM;
-		/* fall through */
+		if (copyout(&dbuf, args, sizeof(dbuf_t)))
+			return EFAULT;
+		break;
 	case NETIO_RX_DQBUF:
 		if (netdrv_dq_rxbuf(nd, &dbuf))
 			return ENOMEM;
@@ -193,6 +235,7 @@ static int net_ioctl(device_t dev, u_long cmd, void *args)
 	default:
 		return EINVAL;
 	};
+	LOG_FUNCTION_NAME_EXIT(0);
 	return 0;
 }
 

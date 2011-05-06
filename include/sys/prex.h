@@ -38,6 +38,7 @@
 #include <sys/sysinfo.h>
 #include <sys/capability.h>
 #include <sys/dbgctl.h>
+#include <sys/util.h>
 
 /*
  * vm_option for task_crate()

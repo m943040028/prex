@@ -31,6 +31,7 @@ capability	/boot/pow	CAP_RAWIO \
 				CAP_PROTSERV
 
 capability	/boot/net	CAP_RAWIO \
+				CAP_PROTSERV \
 				CAP_NETWORK
 
 capability	/boot/init	CAP_KILL

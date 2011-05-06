@@ -11,7 +11,7 @@ struct dbuf_user {
 #define DATAGRAM_HDR_MAGIC	0x9a0a
 	uint16_t	magic;
 	void		*data_start; /* address of the data buffer */
-	size_t          data_length; /* actual data length */
+	size_t		data_length; /* actual data length */
 	struct list	link;
 };
 

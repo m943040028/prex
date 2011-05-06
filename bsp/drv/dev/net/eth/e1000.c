@@ -1,14 +1,52 @@
+/*-
+ * Copyright (c) 2011 Sheng-Yu Chiu
+ * Copyright (c) 1999 - 2006 Intel Corporation
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the author nor the names of any co-contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/* e1000.c - device driver for Intel EEpro1000 NIC */
+
+#define	DEBUG		1
+#define MODULE_NAME	"e1000"
+
 #include <driver.h>
 #include <pci.h>
 #include <net.h>
-
-#define	DEBUG_E1000	1
+#include <sys/dbg.h>
 
 #include "e1000_hw.h"
 #include "e1000.h"
 
-#ifdef DEBUG_E1000
-int debugflags = DBGBIT(INFO) | DBGBIT(TRACE) | DBGBIT(RX);
+#ifdef DEBUG
+enum e1000_dbg {
+	DBG_TX 	= CUSTOM_TAG_START,
+	DBG_RX,
+};
+static int debugflags = DBGBIT(INFO) | DBGBIT(TRACE) | DBGBIT(RX);
 #endif
 
 struct e1000_hw {
@@ -192,6 +230,10 @@ e1000_fill_rx_buffer(struct e1000_adaptor *adaptor)
 			cpu_to_le64(dbuf_get_paddr(dbuf));
 		desc[tail].length =
 			cpu_to_le16(dbuf_get_size(dbuf));
+		DPRINTF(RX, "set rx descriptor, buf=%08x, "
+			"len=%08x\n",
+			dbuf_get_paddr(dbuf),
+			dbuf_get_size(dbuf));
 		adaptor->rx_bufs[tail] = dbuf;
 		if (++tail >= adaptor->num_rx_queues)
 			tail = 0;
@@ -242,6 +284,7 @@ e1000_release_tx_buffer(struct e1000_adaptor *adaptor)
 	dbuf_t tx_buf;
 	int head, tx_ptr;
 
+	LOG_FUNCTION_NAME_ENTRY();
 	head = er32(TDH);
 	while (tx_ptr < head)
 	{
@@ -253,6 +296,7 @@ e1000_release_tx_buffer(struct e1000_adaptor *adaptor)
 	}
 
 	adaptor->tx_ptr = tx_ptr;
+	LOG_FUNCTION_NAME_EXIT(0);
 	return 0;
 }
 
@@ -385,6 +429,7 @@ e1000_transmit(struct net_driver *self, dbuf_t buf)
 	hw = &adaptor->hw;
 	uint32_t head, tail;
 	struct e1000_tx_desc *desc;
+	LOG_FUNCTION_NAME_ENTRY();
 
 	head = er32(TDH);
 	tail = er32(TDT);
@@ -411,6 +456,7 @@ e1000_transmit(struct net_driver *self, dbuf_t buf)
 	/* Advance the counter */
 	tail = (tail + 1) % adaptor->num_tx_queues;
 	ew32(TDT, tail);
+	LOG_FUNCTION_NAME_EXIT(0);
 
 	return 0;
 }

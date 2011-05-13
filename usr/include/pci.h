@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2007-2008, Kohsuke Ohtani
+/*-
+ * Copyright (c) 2011, Sheng-Yu Chiu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,40 +22,44 @@
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY                                                                                                                                                                 
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
 
-#ifndef _SYS_CAPABILITY_H
-#define _SYS_CAPABILITY_H
+#ifndef _PCI_H_
+#define _PCI_H_
 
-/*
- * Type of capability
- */
-typedef uint32_t	cap_t;
+#include <sys/types.h>
 
-/*
- * Task capabilities
- */
+struct pci_func;
 
-#define CAP_NICE	0x00000001	/* Allow changing scheduling parameters */
-#define CAP_RAWIO	0x00000002	/* Allow raw I/O operations */
-#define CAP_KILL	0x00000004	/* Allow raising exception to another task */
-#define CAP_SETPCAP	0x00000008	/* Allow setting capability */
-#define CAP_TASKCTRL	0x00000010	/* Allow controlling another task's execution */
-#define CAP_EXTMEM	0x00000020	/* Allow touching another task's memory */
-#define CAP_PROTSERV	0x00000040	/* Allow operations as protected server */
-#define CAP_NETWORK	0x00000080	/* Allow accessing network service */
-#define CAP_POWERMGMT	0x00000100	/* Allow power management operation */
-#define CAP_DISKADMIN	0x00000200	/* Allow mount, umount, etc. */
-#define CAP_USERFILES	0x00000400	/* Allow accessing user files */
-#define CAP_SYSFILES	0x00000800	/* Allow accessing system files */
-#define CAP_USERIO	0x00001000	/* Allow accessing userspace I/O service  */
+typedef int (pci_match_func)(uint16_t,/* vendor */
+			     uint16_t,/* device */
+			     uint32_t /* class  */);
 
-/*
- * Default capability set
- */
-#define CAPSET_BOOT	0x00000043	/* capabilities for boot tasks */
+/* pci_func_enalbe() flags */
+#define	PCI_MEM_ENABLE	0x1
+#define PCI_IO_ENABLE	0x2
 
-#endif /* !_SYS_CAPABILITY_H */
+__BEGIN_DECLS
+int	  pci_init(void);
+
+list_t	  pci_probe_device(pci_match_func);
+int	  pci_func_configure(struct pci_func *);
+void	  pci_func_enable(struct pci_func *, uint8_t);
+uint32_t  pci_func_get_reg_base(struct pci_func *, int);
+uint32_t  pci_func_get_reg_size(struct pci_func *, int);
+uint8_t	  pci_func_get_irqline(struct pci_func *);
+
+void	  pci_conf_write(struct pci_func *, uint32_t, uint32_t);
+uint32_t  pci_conf_read(struct pci_func *, uint32_t);
+
+uint32_t  pci_bus_read32(paddr_t); 
+void	  pci_bus_write32(paddr_t, uint32_t);
+uint8_t	  pci_bus_read8(paddr_t); 
+void	  pci_bus_write8(paddr_t, uint8_t);
+struct pci_func *to_pci_func(list_t);
+__END_DECLS
+
+#endif /* _PCI_H_ */

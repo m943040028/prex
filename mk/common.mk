@@ -107,7 +107,7 @@ endif
 ifdef SUBDIR
 .PHONY: $(SUBDIR)
 $(SUBDIR): dummy
-	@$(MAKE) -sC $@
+	@$(MAKE) -C $@
 endif
 
 #
@@ -127,7 +127,7 @@ endif
 lint:
 ifdef SUBDIR
 	@(for d in $(SUBDIR) _ ; do \
-	  if [ "$$d" != "_" ]; then $(MAKE) -sC $$d lint; fi; \
+	  if [ "$$d" != "_" ]; then $(MAKE) -C $$d lint; fi; \
 	done);
 endif
 	@(for d in $(filter %.c, $(SRCS)) _ ; do \
@@ -146,7 +146,7 @@ CLEANS= .deps $(TARGET) $(OBJS) $(DEPS) $(DISASM) $(MAP) $(SYMBOL) $(CLEANFILES)
 clean:
 ifdef SUBDIR
 	@(for d in $(SUBDIR) _ ; do \
-	  if [ "$$d" != "_" ]; then $(MAKE) -sC $$d clean; fi; \
+	  if [ "$$d" != "_" ]; then $(MAKE) -C $$d clean; fi; \
 	done);
 endif
 	$(RM) $(CLEANS)

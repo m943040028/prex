@@ -58,6 +58,7 @@ OBJCOPY:=	@$(OBJCOPY)
 OBJDUMP:=	@$(OBJDUMP)
 RM:=		@$(RM)
 CAT:=		@$(CAT)
+MAKE:=		$(MAKE) -s 
 endif
 
 endif # !_OWN_MK_

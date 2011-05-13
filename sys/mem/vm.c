@@ -310,6 +310,10 @@ do_attribute(vm_map_t map, void *addr, int attr)
 		return 0;	/* same attribute */
 
 	map_type = (new_flags & SEG_WRITE) ? PG_WRITE : PG_READ;
+	if (attr & PROT_IO)
+		map_type |= PG_IOMEM;
+	else
+		map_type &= ~PG_IOMEM;
 
 	/*
 	 * If it is shared segment, duplicate it.

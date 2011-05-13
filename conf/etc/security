@@ -30,6 +30,9 @@ capability	/boot/pow	CAP_RAWIO \
 				CAP_POWERMGMT \
 				CAP_PROTSERV
 
+capability	/boot/pow	CAP_RAWIO \
+				CAP_PROTSERV
+
 capability	/boot/net	CAP_RAWIO \
 				CAP_PROTSERV \
 				CAP_NETWORK

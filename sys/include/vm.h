@@ -62,6 +62,7 @@ struct seg {
 #define	PROT_READ	0x1		/* pages can be read */
 #define	PROT_WRITE	0x2		/* pages can be written */
 #define	PROT_EXEC	0x4		/* pages can be executed */
+#define PROT_IO		0x8		/* pages can be used as I/O region */
 
 /*
  * VM mapping per one task.

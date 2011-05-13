@@ -30,7 +30,7 @@
 
 /* e1000.c - device driver for Intel EEpro1000 NIC */
 
-#define	DEBUG		1
+#define	DBG
 #define MODULE_NAME	"e1000"
 
 #include <driver.h>
@@ -41,7 +41,7 @@
 #include "e1000_hw.h"
 #include "e1000.h"
 
-#ifdef DEBUG
+#ifdef DBG
 enum e1000_dbg {
 	DBG_TX 	= CUSTOM_TAG_START,
 	DBG_RX,

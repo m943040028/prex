@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2007-2008, Kohsuke Ohtani
+/*-
+ * Copyright (c) 2011, Sheng-Yu Chiu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,35 +27,63 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _SYS_CAPABILITY_H
-#define _SYS_CAPABILITY_H
-
 /*
- * Type of capability
- */
-typedef uint32_t	cap_t;
-
-/*
- * Task capabilities
+ * ppc4xx_pci.c - platform dependent configuration for ppc4xx pci<->plb bridge
  */
 
-#define CAP_NICE	0x00000001	/* Allow changing scheduling parameters */
-#define CAP_RAWIO	0x00000002	/* Allow raw I/O operations */
-#define CAP_KILL	0x00000004	/* Allow raising exception to another task */
-#define CAP_SETPCAP	0x00000008	/* Allow setting capability */
-#define CAP_TASKCTRL	0x00000010	/* Allow controlling another task's execution */
-#define CAP_EXTMEM	0x00000020	/* Allow touching another task's memory */
-#define CAP_PROTSERV	0x00000040	/* Allow operations as protected server */
-#define CAP_NETWORK	0x00000080	/* Allow accessing network service */
-#define CAP_POWERMGMT	0x00000100	/* Allow power management operation */
-#define CAP_DISKADMIN	0x00000200	/* Allow mount, umount, etc. */
-#define CAP_USERFILES	0x00000400	/* Allow accessing user files */
-#define CAP_SYSFILES	0x00000800	/* Allow accessing system files */
-#define CAP_USERIO	0x00001000	/* Allow accessing userspace I/O service  */
+#include <sys/param.h>
 
-/*
- * Default capability set
- */
-#define CAPSET_BOOT	0x00000043	/* capabilities for boot tasks */
+#define PCIC0_INTERNAL_BASE		(0xef480000)
 
-#endif /* !_SYS_CAPABILITY_H */
+enum pcic0_internal_regs {
+	/* PLB Memory Map (PMM) registers 
+	   PLB addresses ->  PCI address */
+	PCIL0_PMM0LA	= PCIC0_INTERNAL_BASE + 0x0,
+	PCIL0_PMM0MA	= PCIC0_INTERNAL_BASE + 0x4,
+	PCIL0_PMM0PCILA	= PCIC0_INTERNAL_BASE + 0x8,
+	PCIL0_PMM0PCIHA	= PCIC0_INTERNAL_BASE + 0xc,
+	PCIL0_PMM1LA	= PCIC0_INTERNAL_BASE + 0x10,
+	PCIL0_PMM1MA	= PCIC0_INTERNAL_BASE + 0x14,
+	PCIL0_PMM1PCILA	= PCIC0_INTERNAL_BASE + 0x18,
+	PCIL0_PMM1PCIHA	= PCIC0_INTERNAL_BASE + 0x1c,
+	PCIL0_PMM2LA	= PCIC0_INTERNAL_BASE + 0x20,
+	PCIL0_PMM2MA	= PCIC0_INTERNAL_BASE + 0x24,
+	PCIL0_PMM2PCILA	= PCIC0_INTERNAL_BASE + 0x28,
+	PCIL0_PMM2PCIHA	= PCIC0_INTERNAL_BASE + 0x2c,
+
+	/* PCI Target Map (PTM) registers
+	   PCI addresses -> PLB address */
+	PCIL0_PTM1MS	= PCIC0_INTERNAL_BASE + 0x30,
+	PCIL0_PTM1LA	= PCIC0_INTERNAL_BASE + 0x34,
+	PCIL0_PTM2MS	= PCIC0_INTERNAL_BASE + 0x38,
+	PCIL0_PTM2LA	= PCIC0_INTERNAL_BASE + 0x3c,
+	PCI_REG_SIZE	= PCIC0_INTERNAL_BASE + 0x40,
+};
+
+#ifdef CONFIG_AMCC_405EP
+static uint8_t irq_lines[] = 
+{
+	3, 16, 18, 0xff
+};
+#elif
+#error "You need to select one PowerPC implementation"
+#endif
+
+int
+platform_pci_probe_irq(uint8_t irqline)
+{
+	int i = 0;
+	while (irq_lines[i] != 0xff) {
+		if (irq_lines[i] == irqline)
+			return 1;
+		i++;
+	}
+	return 0;
+}
+
+int
+platform_pci_init(void)
+{
+	/* TODO: complete this function */
+	return 0;
+}

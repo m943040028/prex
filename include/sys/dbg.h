@@ -5,12 +5,12 @@
 /*
  * Usage:
  *
- * #define DEBUG	1
+ * #define DBG
  * #define MODULE_NAME	"xxx"
  *
  * #include <sys/dbg.h>
  *
- * #ifdef DEBUG
+ * #ifdef DBG
  * enum your_extension {
  * 	DBG_TX = CUSTOM_TAG_START,
  *	DBG_RX,
@@ -19,13 +19,21 @@
  * #endif
  */
 
-#ifdef DEBUG
+#ifdef DBG
 enum {
 	DBG_INFO, 
 	DBG_TRACE,
+	DBG_WARN,
+	DBG_VERBOSE,
 	CUSTOM_TAG_START,
 };
 #define DBGBIT(x)       (1<<DBG_##x)
+
+/* system servers should use dprintf */
+#ifdef _STANDALONE
+#undef printf
+#define printf dprintf
+#endif
 
 #define DPRINTF(what, fmt, ...) do { \
 	if (debugflags & DBGBIT(what)) \

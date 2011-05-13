@@ -29,7 +29,7 @@
 
 /* net.c - the Network Coordinator */
 
-/*#define DEBUG			1*/
+/*#define DBG */
 #define MODULE_NAME		"netc"
 
 #include <driver.h>
@@ -42,7 +42,7 @@
 #include "dbuf.h"
 #include "netdrv.h"
 
-#ifdef DEBUG
+#ifdef DBG
 static int debugflags = DBGBIT(INFO) | DBGBIT(TRACE);
 #endif
 

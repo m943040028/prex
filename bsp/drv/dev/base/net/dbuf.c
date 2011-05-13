@@ -29,7 +29,7 @@
 
 /* dbuf.c - datagram buffer manager */
 
-/*#define DEBUG                   1*/
+/* #define DBG */
 #define MODULE_NAME             "dbuf"
 
 #include <driver.h>
@@ -41,7 +41,7 @@
 #include "dbuf.h"
 #include "netdrv.h"
 
-#ifdef DEBUG
+#ifdef DBG
 static int debugflags = DBGBIT(INFO) | DBGBIT(TRACE);
 #endif
 

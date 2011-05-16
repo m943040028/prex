@@ -65,7 +65,7 @@ static uint8_t irq_lines[] =
 {
 	3, 16, 18, 0xff
 };
-#elif
+#else
 #error "You need to select one PowerPC implementation"
 #endif
 

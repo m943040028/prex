@@ -10,7 +10,9 @@ ifeq ($(CONFIG_PM),y)
 TASKS+= 	$(SRCDIR)/usr/server/pow/pow
 endif
 TASKS+= 	$(SRCDIR)/usr/server/fs/fs
+ifeq ($(CONFIG_PCI),y)
 TASKS+= 	$(SRCDIR)/usr/server/pci/pci
+endif
 TASKS+= 	$(SRCDIR)/usr/server/net/net
 endif
 

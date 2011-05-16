@@ -102,7 +102,7 @@ void	mmu_tlb_index_update(void);
 int	mmu_replace_tlb_entry(vaddr_t, paddr_t, pte_t);
 __END_DECLS
 
-#elif
+#else
 
 typedef uint32_t	*pgd_t;		/* page directory */
 

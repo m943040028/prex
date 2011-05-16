@@ -318,7 +318,7 @@ void
 pci_func_enable(struct pci_func *f, uint8_t flags)
 {
 
-	uint32_t v;
+	uint32_t v = 0;
 	if (flags & PCI_MEM_ENABLE)
 		v |= PCI_COMMAND_MEM_ENABLE;
 	if (flags & PCI_IO_ENABLE)

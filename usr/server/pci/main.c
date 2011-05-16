@@ -93,6 +93,7 @@ enum pci_config_space {
 
 struct pci_func {
 	struct pci_bus *bus;	/* Primary bus for bridges */
+	task_t owner;
 
 	uint32_t dev;
 	uint32_t func;
@@ -349,7 +350,7 @@ void
 pci_func_enable(struct pci_func *f, uint8_t flags)
 {
 
-	uint32_t v;
+	uint32_t v = 0;
 	if (flags & PCI_MEM_ENABLE)
 		v |= PCI_COMMAND_MEM_ENABLE;
 	if (flags & PCI_IO_ENABLE)

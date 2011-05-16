@@ -145,7 +145,7 @@ low_level_input(struct netif *netif)
 {
 	/*struct pif *pif = netif->state;*/
 	struct pbuf *p, *q;
-	u16_t len;
+	u16_t len = 0;
 
 	/* Obtain the size of the packet and put it into the "len"
 	   variable. */

@@ -4,6 +4,7 @@
 *.rt
 *.bin
 *.swp
+*.a
 .deps
 bsp/boot/bootldr
 bsp/drv/drv.ko

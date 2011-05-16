@@ -1,7 +1,8 @@
 
 SRCS+=			dev/base/main.c \
 			dev/base/init.c \
-			dev/base/tty.c
+			dev/base/tty.c \
+			dev/base/uio.c
 
 SRCS-$(CONFIG_PM)+=	dev/base/pm.c
 SRCS-$(CONFIG_CONS)+=	dev/base/cons.c

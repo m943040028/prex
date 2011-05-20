@@ -38,7 +38,7 @@ typedef int (pci_match_func)(uint16_t,/* vendor */
 			     uint16_t,/* device */
 			     uint32_t /* class  */);
 
-/* pci_func_enalbe() flags */
+/* pci_func_enable() flags */
 #define	PCI_MEM_ENABLE	0x1
 #define PCI_IO_ENABLE	0x2
 

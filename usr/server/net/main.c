@@ -106,7 +106,6 @@ allocate_dbuf(struct pif *pif)
 	{
 		vm_allocate(task_self(),
 			    (void *)&pif->tx_buf[i], PAGE_SIZE, 1);
-		DPRINTF(("net: tx_buf=%08x\n", pif->tx_buf[i]));
 		dbuf = pif->tx_buf[i];
 		dbuf->magic = DATAGRAM_HDR_MAGIC;
 		list_init(&dbuf->link);
@@ -119,7 +118,6 @@ allocate_dbuf(struct pif *pif)
 	{
 		vm_allocate(task_self(),
 			    (void *)&pif->rx_buf[i], PAGE_SIZE, 1);
-		DPRINTF(("net: rx_buf=%08x\n", pif->rx_buf[i]));
 		dbuf = pif->rx_buf[i];
 		dbuf->magic = DATAGRAM_HDR_MAGIC;
 		list_init(&dbuf->link);

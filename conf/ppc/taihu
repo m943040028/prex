@@ -88,6 +88,7 @@ device		ns16550	    	# NS16550 serial port (P:serial)
 device		null		# NULL device
 device		zero		# Zero device
 device		ramdisk		# RAM disk
+device		uio		# User-space I/O driver
 device		e1000		# E1000 Giga-ethernet support
 device		net		# Network driver base
 

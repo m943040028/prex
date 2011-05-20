@@ -42,9 +42,9 @@
 #include <sys/dbg.h>
 #include <assert.h>
 #include <errno.h>
-#include <ipc/pci.h>
 #include <ipc/exec.h>
 #include <ipc/ipc.h>
+#include <ipc/pci.h>
 #include <server.h>
 #include <uio.h>
 #include <pci.h>
@@ -56,8 +56,6 @@
 #include "pcireg.h"
 #include "plat.h"
 
-/* #define SHOW_PCI_VERBOSE_INFO	1 */
-
 #ifdef DBG
 static int debugflags = DBGBIT(INFO) | DBGBIT(TRACE);
 #endif
@@ -66,6 +64,13 @@ static int debugflags = DBGBIT(INFO) | DBGBIT(TRACE);
 #else
 #define ASSERT(e)
 #endif
+
+static int pci_connect(struct msg *);
+static int pci_probe_deivce(struct msg *);
+static int pci_func_acquire(struct msg *);
+static int pci_func_enable(struct msg *);
+static int pci_func_release(struct msg *);
+
 
 #if BYTE_ORDER == BIG_ENDIAN
 uint32_t host_to_pci(uint32_t x)
@@ -105,8 +110,6 @@ struct pci_func {
 	uint32_t reg_size[6];
 	uint8_t irq_line;
 	uint8_t irq_pin;
-	struct uio_mem *mem_region;
-	int	num_mem_region;
 
 	struct list link;
 };
@@ -125,8 +128,9 @@ struct pci_serv_priv {
 static struct pci_serv_priv *serv;
 
 /* forward declartion */
-uint32_t pci_conf_read(struct pci_func *f, uint32_t off);
-void pci_conf_write(struct pci_func *f, uint32_t off, uint32_t v);
+static uint32_t pci_conf_read(struct pci_func *f, uint32_t off);
+static void pci_conf_write(struct pci_func *f, uint32_t off, uint32_t v);
+static int pci_func_configure(struct pci_func *f)
 
 static void
 pci_conf1_set_addr(uint32_t bus,
@@ -145,7 +149,6 @@ pci_conf1_set_addr(uint32_t bus,
 	uio_write32(serv->config_space, PCI_CFG_ADDR, host_to_pci(v));
 }
 
-#ifdef SHOW_PCI_VERBOSE_INFO
 static const char *pci_class[] = 
 {
 	[0x0] = "Unknown",
@@ -164,13 +167,12 @@ pci_print_func(struct pci_func *f)
 	if (PCI_CLASS(f->dev_class) < sizeof(pci_class) / sizeof(pci_class[0]))
 		class = pci_class[PCI_CLASS(f->dev_class)];
 
-	dprintf("pci: %02x:%02x.%d: %04x:%04x: class: %x.%x (%s) irq: %d\n",
+	DPRINTF(VERBOSE, "pci: %02x:%02x.%d: %04x:%04x: class: %x.%x (%s) irq: %d\n",
 		f->bus->busno, f->dev, f->func,
 		PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id),
 		PCI_CLASS(f->dev_class), PCI_SUBCLASS(f->dev_class), class,
 		f->irq_line);
 }
-#endif
 
 static uint8_t
 pci_allocate_irqline(void)
@@ -251,9 +253,8 @@ pci_scan_bus(struct pci_bus *bus)
 			intr = pci_conf_read(af, PCI_INTERRUPT_REG);
 			af->irq_line = PCI_INTERRUPT_LINE(intr);
 			af->dev_class = pci_conf_read(af, PCI_CLASS_REG);
-#ifdef SHOW_PCI_VERBOSE_INFO
 			pci_print_func(af);
-#endif
+			pci_func_configure(af);
 		}
 	}
 
@@ -272,21 +273,21 @@ pci_init(void)
 	return pci_scan_bus(&root_bus);
 }
 
-uint32_t
+static uint32_t
 pci_conf_read(struct pci_func *f, uint32_t off)
 {
 	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);
 	return pci_to_host(uio_read32(serv->config_space, PCI_CFG_DATA));
 }
 
-void
+static void
 pci_conf_write(struct pci_func *f, uint32_t off, uint32_t v)
 {
 	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);
 	uio_write32(serv->config_space, PCI_CFG_DATA, host_to_pci(v));
 }
 
-int
+static int
 pci_func_configure(struct pci_func *f)
 {
 	uint32_t bar_width;
@@ -319,10 +320,8 @@ pci_func_configure(struct pci_func *f)
 					return ENOMEM;
 				oldv = base;
 			}
-#ifdef SHOW_PCI_VERBOSE_INFO
-			dprintf("pci: allocated mem region %d: %d bytes at 0x%x\n",
+			DPRINTF(VERBOSE, "pci: allocated mem region %d: %d bytes at 0x%x\n",
 				regnum, size, base);
-#endif
 		} else {
 #ifdef CONFIG_ARCH_HAS_IO_SPACE
 			/* TODO handle IO region */
@@ -340,14 +339,11 @@ pci_func_configure(struct pci_func *f)
 		       PCI_INTERRUPT_LINE(f->irq_line) |
 		       PCI_INTERRUPT_PIN(f->irq_pin));
 
-	dprintf("pci: function %02x:%02x.%d (%04x:%04x) configured\n",
-		f->bus->busno, f->dev, f->func,
-		PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id));
 	return 0;
 }
 
 void
-pci_func_enable(struct pci_func *f, uint8_t flags)
+_pci_func_enable(struct pci_func *f, uint8_t flags)
 {
 
 	uint32_t v = 0;
@@ -359,7 +355,7 @@ pci_func_enable(struct pci_func *f, uint8_t flags)
 	pci_conf_write(f, PCI_COMMAND_STATUS_REG,
 			  v | PCI_COMMAND_MASTER_ENABLE);
 
-	dprintf("pci: function %02x:%02x.%d (%04x:%04x) enabled\n",
+	DPRINTF(VERBOSE, "pci: function %02x:%02x.%d (%04x:%04x) enabled\n",
 		f->bus->busno, f->dev, f->func,
 		PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id));
 }
@@ -385,10 +381,6 @@ pci_probe_device(pci_match_func match_func)
 	return l;
 }
 
-struct pci_func *to_pci_func(list_t list) {
-	return list_entry(list, struct pci_func, link);
-}
-
 int
 server_init(void)
 {
@@ -409,18 +401,12 @@ server_init(void)
 	}
 
 	/* map pci configuration space */
-	if (uio_map_iomem(serv->uio_handle, "config_space", 
-			  CONFIG_PCI_CONFIG_BASE, PAGE_SIZE) < 0)
-	{
-		LOG_FUNCTION_NAME_EXIT(EIO);
+	serv->config_space = uio_map_iomem(serv->uio_handle, "config_space", 
+					   CONFIG_PCI_CONFIG_BASE, PAGE_SIZE);
+	if (!serv->config_space)
 		return EIO;
-	}
-	
-	if (pci_init()) {
-		DPRINTF(WARN, "cannot initialize pci subsystem\n");
-		LOG_FUNCTION_NAME_EXIT(EIO);
-		return EIO;
-	}
+
+	pci_init();
 
 	LOG_FUNCTION_NAME_EXIT(0);
 	return 0;
@@ -435,9 +421,39 @@ struct msg_map {
 };
 
 static const struct msg_map pcimsg_map[] = {
-	
+	{ PCI_CONNECT,		pci_connect }
+	{ PCI_PROBE_DEVICE,	pci_probe_deivce },
+	{ PCI_FUNC_ACQUIRE,	pci_func_acquire },
+	{ PCI_FUNC_ENABLE,	pci_func_enable },
+	{ PCI_FUNC_RELEASE,	pci_func_release },
 };
 
+static int pci_connect(struct msg *msg)
+{
+	LOG_FUNCTION_NAME_ENTRY();
+	LOG_FUNCTION_NAME_EXIT(0);
+	return 0;
+}
+
+static int pci_probe_deivce(struct msg *msg)
+{
+	return 0;
+}
+
+static int pci_func_acquire(struct msg *msg)
+{
+	return 0;
+}
+
+static int pci_func_enable(struct msg *msg)
+{
+	return 0;
+}
+
+static int pci_func_release(struct msg *msg)
+{
+	return 0;
+}
 
 /*
  * Main routine for pci server.

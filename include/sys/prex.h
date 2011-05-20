@@ -111,6 +111,7 @@ int	vm_allocate(task_t task, void **addr, size_t size, int anywhere);
 int	vm_free(task_t task, void *addr);
 int	vm_attribute(task_t task, void *addr, int prot);
 int	vm_map(task_t target, void  *addr, size_t size, void **alloc);
+int	vm_map_phys(paddr_t addr, size_t size, void **alloc);
 
 int	object_create(const char *name, object_t *objp);
 int	object_destroy(object_t obj);

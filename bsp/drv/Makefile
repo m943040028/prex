@@ -8,7 +8,7 @@ TARGET:=	drv.ko
 
 _RELOC_OBJ_:=	1
 _KERNEL_:=	1
-DEFS+=		KERNEL
+DEFS+=		KERNEL DRIVERS
 
 include $(CURDIR)/dev/base/Makefile.inc
 include $(CURDIR)/dev/block/Makefile.inc

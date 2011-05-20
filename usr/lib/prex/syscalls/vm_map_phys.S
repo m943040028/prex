@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, Kohsuke Ohtani
+ * Copyright (c) 2005, Kohsuke Ohtani
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,51 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _IPC_PCI_H
-#define _IPC_PCI_H
+#include <machine/systrap.h>
+#include "syscall.h"
 
-#include <ipc/ipc.h>
-#include <pci_defs.h>
-
-struct pci_probe_msg {
-	struct msg_hdr	hdr;
-	pci_probe_t	probe;
-};
-
-struct pci_probe_reply {
-	struct msg_hdr	hdr;
-	pci_func_t	func;
-	uint32_t	reg_base[6];
-	uint32_t	reg_size[6]
-	uint16_t	irqline;
-	bool		eof;
-};
-
-struct pci_acquire_msg {
-	struct msg_hdr	hdr;
-	pci_func_t	func;
-	task_t		task;
-};
-
-struct pci_enable_msg {
-	struct msg_hdr	hdr;
-	pci_func_t	func;
-	uint8_t		flag;
-};
-
-struct pci_release_msg {
-	struct msg_hdr	hdr;
-	pci_func_t	func;
-	task_t		task;
-};
-
-/*
- * Messages for pci object
- */
-#define PCI_CONNECT		0x00000500
-#define PCI_PROBE_DEVICE	0x00000501
-#define PCI_FUNC_ACQUIRE	0x00000502
-#define PCI_FUNC_ENABLE		0x00000503
-#define PCI_FUNC_RELEASE	0x00000504
-
-#endif /* !_IPC_POW_H */
+SYSCALL3(vm_map_phys)

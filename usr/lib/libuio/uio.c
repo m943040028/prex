@@ -36,7 +36,7 @@ uio_init(void)
 	if (!uio_handle)
 		return NULL;
 
-	err = device_open("/dev/uio", 0, &uio_handle->uio_dev);
+	err = device_open("uio", 0, &uio_handle->uio_dev);
 	if (err)
 		goto err_free_uio;
 
@@ -63,7 +63,7 @@ uio_map_iomem(struct uio_handle *handle, const char *name,
 	mem->phys_addr = phys;
 	mem->size = size;
 	strncpy(mem->name, name, sizeof(name));
-	ret = vm_map(task_self(), (void *)phys, size, &mem->addr);
+	ret = vm_map_phys(phys, size, &mem->addr);
 	if (ret < 0)
 		goto out_free_mem;
 
@@ -91,12 +91,12 @@ uio_unmap_iomem(struct uio_handle *handle, struct uio_mem *mem)
 void
 uio_write32(struct uio_mem *mem, off_t offset, uint32_t data)
 {
-	*((volatile uint32_t *)mem->addr + offset) = data;
+	*((volatile uint32_t *)((uint32_t)mem->addr + offset)) = data;
 }
 
 uint32_t
 uio_read32(struct uio_mem *mem, off_t offset)
 {
-	return *((volatile uint32_t *)mem->addr + offset);
+	return *((volatile uint32_t *)((uint32_t)mem->addr + offset));
 }
 

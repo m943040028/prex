@@ -30,12 +30,14 @@ capability	/boot/pow	CAP_RAWIO \
 				CAP_POWERMGMT \
 				CAP_PROTSERV
 
-capability	/boot/pow	CAP_RAWIO \
-				CAP_PROTSERV
-
 capability	/boot/net	CAP_RAWIO \
 				CAP_PROTSERV \
 				CAP_NETWORK
+
+capability	/boot/pci	CAP_RAWIO \
+				CAP_PROTSERV \
+				CAP_EXTMEM \
+				CAP_USERIO
 
 capability	/boot/init	CAP_KILL
 

@@ -90,7 +90,7 @@ low_level_init(struct netif *netif)
 	}
 
 	/* bring up device */
-	device_ioctl(pif->dev, NETIO_START, NULL);
+	/*device_ioctl(pif->dev, NETIO_START, NULL);*/
 }
 
 /**

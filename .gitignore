@@ -40,6 +40,7 @@ usr/server/fs/fs
 usr/server/net/net
 usr/server/pow/pow
 usr/server/proc/proc
+usr/server/pci/pci
 usr/test/args/args
 usr/test/attack/attack
 usr/test/conf/conf

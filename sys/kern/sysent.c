@@ -140,6 +140,7 @@ static const struct sysent sysent[] = {
 	/* 57 */ SYSENT(2, sys_info),
 	/* 58 */ SYSENT(1, sys_time),
 	/* 59 */ SYSENT(2, sys_debug),
+	/* 60 */ SYSENT(3, vm_map_phys),
 };
 
 #define NSYSCALL	(int)(sizeof(sysent) / sizeof(sysent[0]))

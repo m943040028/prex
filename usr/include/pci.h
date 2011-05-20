@@ -31,35 +31,40 @@
 #define _PCI_H_
 
 #include <sys/types.h>
+#include <pci_defs.h>
 
-struct pci_func;
-
-typedef int (pci_match_func)(uint16_t,/* vendor */
-			     uint16_t,/* device */
-			     uint32_t /* class  */);
-
-/* pci_func_enalbe() flags */
+/* pci_func_enable() flags */
 #define	PCI_MEM_ENABLE	0x1
 #define PCI_IO_ENABLE	0x2
 
+struct pci_handle;
+struct pci_func_handle;
+
 __BEGIN_DECLS
-int	  pci_init(void);
+/* attach to pci server */
+struct pci_handle *pci_attach(void);
+void	  pci_detach(struct pci_handle *);
 
-list_t	  pci_probe_device(pci_match_func);
-int	  pci_func_configure(struct pci_func *);
-void	  pci_func_enable(struct pci_func *, uint8_t);
-uint32_t  pci_func_get_reg_base(struct pci_func *, int);
-uint32_t  pci_func_get_reg_size(struct pci_func *, int);
-uint8_t	  pci_func_get_irqline(struct pci_func *);
+/* probe pci device */
+void	  pci_scan_device(struct pci_handle *, pci_probe_t);
+struct pci_func_handle *pci_get_func(struct pci_handle *);
 
-void	  pci_conf_write(struct pci_func *, uint32_t, uint32_t);
-uint32_t  pci_conf_read(struct pci_func *, uint32_t);
+/* pci function associated functions */
+int	  pci_func_acquire(struct pci_func_handle *);
+void	  pci_func_enable(struct pci_func_handle *, uint8_t);
+void	  pci_func_release(struct pci_func_handle *);
+int	  pci_func_request_mem(struct pci_func_handle *, int,
+			       uint32_t *, uint32_t *);
+int	  pci_func_request_irq(struct pci_func_handle *,
+			       void (*handler)(void *),
+			       void *);
 
+#if 0
 uint32_t  pci_bus_read32(paddr_t); 
 void	  pci_bus_write32(paddr_t, uint32_t);
 uint8_t	  pci_bus_read8(paddr_t); 
 void	  pci_bus_write8(paddr_t, uint8_t);
-struct pci_func *to_pci_func(list_t);
+#endif
 __END_DECLS
 
 #endif /* _PCI_H_ */

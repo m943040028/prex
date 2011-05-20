@@ -65,6 +65,8 @@ static int	   do_allocate(vm_map_t, void **, size_t, int);
 static int	   do_free(vm_map_t, void *);
 static int	   do_attribute(vm_map_t, void *, int);
 static int	   do_map(vm_map_t, void *, size_t, void **);
+static int	   do_grant(vm_map_t, void *, size_t, void **);
+static int	   do_map_phys(paddr_t, size_t, void **);
 static vm_map_t	   do_dup(vm_map_t);
 
 
@@ -311,9 +313,7 @@ do_attribute(vm_map_t map, void *addr, int attr)
 
 	map_type = (new_flags & SEG_WRITE) ? PG_WRITE : PG_READ;
 	if (attr & PROT_IO)
-		map_type |= PG_IOMEM;
-	else
-		map_type &= ~PG_IOMEM;
+		map_type = PG_IOMEM;
 
 	/*
 	 * If it is shared segment, duplicate it.
@@ -438,7 +438,7 @@ do_map(vm_map_t map, void *addr, size_t size, void **alloc)
 
 	pa = tgt->phys + (paddr_t)(start - tgt->addr);
 	if (mmu_map(curmap->pgd, pa, cur->addr, size, map_type)) {
-		seg_free(&curmap->head, seg);
+		seg_free(&curmap->head, cur);
 		return ENOMEM;
 	}
 
@@ -449,6 +449,178 @@ do_map(vm_map_t map, void *addr, size_t size, void **alloc)
 	copyout(&tmp, alloc, sizeof(tmp));
 
 	curmap->total += size;
+	return 0;
+}
+
+/**
+ * vm_map_phys - map physical memory to current task.
+ *
+ * Users should have USERIO capability
+ */
+int
+vm_map_phys(paddr_t addr, size_t size, void **alloc)
+{
+	int error;
+
+	sched_lock();
+	if (!task_capable(CAP_USERIO)) {
+		sched_unlock();
+		return EPERM;
+	}
+
+	error = do_map_phys(addr, size, alloc);
+
+	sched_unlock();
+	return error;
+}
+
+static int
+do_map_phys(paddr_t addr, size_t size, void **alloc)
+{
+	struct seg *seg, *cur;
+	vm_map_t curmap;
+	vaddr_t start, end;
+	size_t offset;
+	int map_type;
+	void *tmp;
+
+	if (size == 0)
+		return EINVAL;
+
+	/* check fault */
+	tmp = NULL;
+	if (copyout(&tmp, alloc, sizeof(tmp)))
+		return EFAULT;
+
+	start = trunc_page((vaddr_t)addr);
+	end = round_page((vaddr_t)addr + size);
+	size = (size_t)(end - start);
+	offset = (size_t)((vaddr_t)addr - start);
+
+	/*
+	 * Find the free segment in current task
+	 */
+	curmap = curtask->map;
+	if ((seg = seg_alloc(&curmap->head, size)) == NULL)
+		return ENOMEM;
+	cur = seg;
+
+	/*
+	 * Try to map into current memory
+	 */
+	map_type = PG_IOMEM;
+	if (mmu_map(curmap->pgd, addr, cur->addr, size, map_type)) {
+		seg_free(&curmap->head, cur);
+		return ENOMEM;
+	}
+
+	cur->flags = SEG_MAPPED;
+	cur->phys = addr;
+
+	tmp = (void *)(cur->addr + offset);
+	copyout(&tmp, alloc, sizeof(tmp));
+
+	curmap->total += size;
+	return 0;
+}
+
+/**
+ * vm_grant - grant another task access to current task's memory.
+ *
+ * Note: This routine does not support mapping to the specific address.
+ */
+int
+vm_grant(task_t target, void *addr, size_t size, void **alloc)
+{
+	int error;
+
+	sched_lock();
+	if (!task_valid(target)) {
+		sched_unlock();
+		return ESRCH;
+	}
+	if (target == curtask) {
+		sched_unlock();
+		return EINVAL;
+	}
+	if (!task_capable(CAP_EXTMEM)) {
+		sched_unlock();
+		return EPERM;
+	}
+	if (!user_area(addr)) {
+		sched_unlock();
+		return EFAULT;
+	}
+
+	error = do_grant(target->map, addr, size, alloc);
+
+	sched_unlock();
+	return error;
+}
+
+static int
+do_grant(vm_map_t map, void *addr, size_t size, void **alloc)
+{
+	struct seg *seg, *cur, *tgt;
+	vm_map_t curmap;
+	vaddr_t start, end;
+	paddr_t pa;
+	size_t offset;
+	int map_type;
+	void *tmp;
+
+	if (size == 0)
+		return EINVAL;
+	if (map->total + size >= MAXMEM)
+		return ENOMEM;
+
+	/* check fault */
+	tmp = NULL;
+	if (copyout(&tmp, alloc, sizeof(tmp)))
+		return EFAULT;
+
+	start = trunc_page((vaddr_t)addr);
+	end = round_page((vaddr_t)addr + size);
+	size = (size_t)(end - start);
+	offset = (size_t)((vaddr_t)addr - start);
+
+	/*
+	 * Find the segment that includes target address
+	 */
+	curmap = curtask->map;
+	seg = seg_lookup(&curmap->head, start, size);
+	if (seg == NULL || (seg->flags & SEG_FREE))
+		return EINVAL;	/* not allocated */
+	cur = seg;
+
+	/*
+	 * Find the free segment in target task
+	 */
+	if ((seg = seg_alloc(&map->head, size)) == NULL)
+		return ENOMEM;
+	tgt = seg;
+
+	/*
+	 * Try to map into current memory
+	 */
+	if (cur->flags & SEG_WRITE)
+		map_type = PG_WRITE;
+	else
+		map_type = PG_READ;
+
+	pa = cur->phys + (paddr_t)(start - cur->addr);
+	if (mmu_map(map->pgd, pa, tgt->addr, size, map_type)) {
+		seg_free(&map->head, tgt);
+		return ENOMEM;
+	}
+
+	tgt->flags = tgt->flags | SEG_MAPPED;
+	tgt->phys = pa;
+
+	tmp = (void *)(cur->addr + offset);
+	copyout(&tmp, alloc, sizeof(tmp));
+
+	map->total += size;
 	return 0;
 }
 

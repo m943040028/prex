@@ -79,6 +79,7 @@ int	 vm_allocate(task_t, void **, size_t, int);
 int	 vm_free(task_t, void *);
 int	 vm_attribute(task_t, void *, int);
 int	 vm_map(task_t, void *, size_t, void **);
+int	 vm_map_phys(paddr_t, size_t, void **);
 vm_map_t vm_dup(vm_map_t);
 vm_map_t vm_create(void);
 int	 vm_reference(vm_map_t);

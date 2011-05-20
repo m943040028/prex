@@ -32,8 +32,13 @@
 
 #include <sys/cdefs.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/power.h>
 #include <sys/net.h>
+#include <sys/ipl.h>
+#ifdef DRIVERS
+#include <types.h>
+#endif
 
 /*
  * Ioctl's have the command encoded in the lower word, and the size of
@@ -129,6 +134,18 @@ struct net_if_status {
 	int		nr_recv;
 	int		nr_tx;
 	int		nr_dropped;
+};
+
+/*
+ * User-space I/O control code
+ */
+#define UIO_CONNECT		_IOR('U', 0, int)
+#define UIO_REQUEST_IRQ		_IOR('U', 1, struct irq_req)
+
+struct irq_req {
+	int		nr;
+	int		ipl;
+	task_t		task;
 };
 
 __BEGIN_DECLS

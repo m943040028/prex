@@ -3,7 +3,7 @@ VPATH:=	$(SRCDIR)/usr/lib/prex/syscalls:$(VPATH)
 SRCS+=	$(SRCDIR)/usr/arch/$(ARCH)/_systrap.S \
 	object_create.S object_destroy.S object_lookup.S \
 	msg_send.S msg_receive.S msg_reply.S \
-	vm_allocate.S vm_free.S vm_attribute.S vm_map.S \
+	vm_allocate.S vm_free.S vm_attribute.S vm_map.S vm_map_phys.S \
 	task_create.S task_terminate.S task_self.S \
 	task_suspend.S task_resume.S task_setname.S \
 	task_setcap.S task_chkcap.S \

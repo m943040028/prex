@@ -36,6 +36,10 @@ ifeq ($(CONFIG_CMD_DEBUG),y)
 FILES+= 	$(SRCDIR)/usr/sbin/debug/debug
 endif
 
+ifeq ($(CONFIG_CMD_LSPCI),y)
+FILES+= 	$(SRCDIR)/usr/sbin/lspci/lspci
+endif
+
 ifneq ($(_QUICK_),1)
 ifneq ($(CONFIG_TINY),y)
 FILES+=		$(SRCDIR)/usr/sample/hello/hello

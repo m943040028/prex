@@ -49,3 +49,5 @@ capability	/boot/install	CAP_SYSFILES
 capability	/boot/pmctrl	CAP_POWERMGMT
 
 capability	/boot/lock	CAP_USERFILES
+
+capability	/boot/lspci	CAP_USERIO

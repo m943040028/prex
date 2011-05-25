@@ -8,8 +8,8 @@
 struct uio_mem {
 	char		name[20];
 	void		*addr;
-	paddr_t         phys_addr;
-	size_t          size;
+	paddr_t		phys_addr;
+	size_t		size;
 	struct list	link;
 };
 

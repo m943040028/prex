@@ -33,12 +33,13 @@
 #include <sys/types.h>
 #include <pci_defs.h>
 
-/* pci_func_enable() flags */
-#define	PCI_MEM_ENABLE	0x1
-#define PCI_IO_ENABLE	0x2
-
 struct pci_handle;
 struct pci_func_handle;
+
+struct pci_mem_region {
+	paddr_t	base;
+	paddr_t size;
+};
 
 __BEGIN_DECLS
 /* attach to pci server */
@@ -46,19 +47,22 @@ struct pci_handle *pci_attach(void);
 void	  pci_detach(struct pci_handle *);
 
 /* probe pci device */
-void	  pci_scan_device(struct pci_handle *, pci_probe_t);
-struct pci_func_handle *pci_get_func(struct pci_handle *);
+int	  pci_scan_device(struct pci_handle *, pci_probe_t);
+int	  pci_get_func(struct pci_handle *, struct pci_func_handle **);
 
 /* pci function associated functions */
 int	  pci_func_acquire(struct pci_func_handle *);
-void	  pci_func_enable(struct pci_func_handle *, uint8_t);
-void	  pci_func_release(struct pci_func_handle *);
+int	  pci_func_enable(struct pci_func_handle *, uint8_t);
+int	  pci_func_release(struct pci_func_handle *);
 int	  pci_func_request_mem(struct pci_func_handle *, int,
 			       uint32_t *, uint32_t *);
 int	  pci_func_request_irq(struct pci_func_handle *,
 			       void (*handler)(void *),
 			       void *);
-
+void	  pci_func_get_irqline(struct pci_func_handle *, uint8_t *);
+void	  pci_func_get_mem_region(struct pci_func_handle *, int,
+				  struct pci_mem_region *);
+void	  pci_func_get_func_id(struct pci_func_handle *, pci_func_id_t *);
 #if 0
 uint32_t  pci_bus_read32(paddr_t); 
 void	  pci_bus_write32(paddr_t, uint32_t);

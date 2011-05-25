@@ -47,7 +47,6 @@
 #include <ipc/pci.h>
 #include <server.h>
 #include <uio.h>
-#include <pci.h>
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -57,20 +56,13 @@
 #include "plat.h"
 
 #ifdef DBG
-static int debugflags = DBGBIT(INFO) | DBGBIT(TRACE);
+static int debugflags = DBGBIT(INFO);
 #endif
 #ifdef DBG
 #define ASSERT(e)	dassert(e)
 #else
 #define ASSERT(e)
 #endif
-
-static int pci_connect(struct msg *);
-static int pci_probe_deivce(struct msg *);
-static int pci_func_acquire(struct msg *);
-static int pci_func_enable(struct msg *);
-static int pci_func_release(struct msg *);
-
 
 #if BYTE_ORDER == BIG_ENDIAN
 uint32_t host_to_pci(uint32_t x)
@@ -114,13 +106,29 @@ struct pci_func {
 	struct list link;
 };
 
+struct pci_scan_node {
+	struct list link;
+	struct pci_func *pf;
+};
+
 struct pci_bus {
 	struct pci_func *parent_bridge;
 	uint32_t busno;
 };
 
+struct pci_user {
+	task_t	task;
+	struct list link;
+
+	/* connect all pci_scan_node together */
+	struct list pci_scan_result;
+	/* iterator used to get pci function iteratively */
+	list_t pci_scan_itr;
+};
+
 struct pci_serv_priv {
 	struct list pci_func_list;
+	struct list pci_user_list;
 	paddr_t pci_map_base;
 	struct uio_handle *uio_handle;
 	struct uio_mem *config_space;
@@ -130,7 +138,7 @@ static struct pci_serv_priv *serv;
 /* forward declartion */
 static uint32_t pci_conf_read(struct pci_func *f, uint32_t off);
 static void pci_conf_write(struct pci_func *f, uint32_t off, uint32_t v);
-static int pci_func_configure(struct pci_func *f)
+static int pci_func_configure(struct pci_func *f);
 
 static void
 pci_conf1_set_addr(uint32_t bus,
@@ -360,27 +368,6 @@ _pci_func_enable(struct pci_func *f, uint8_t flags)
 		PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id));
 }
 
-list_t
-pci_probe_device(pci_match_func match_func)
-{
-	list_t l = NULL;
-	list_t	n, head = &serv->pci_func_list;
-	for (n = list_first(&serv->pci_func_list); n != head;
-			    n = list_next(n)) {
-		struct pci_func *f;
-		f = list_entry(n, struct pci_func, link);
-		if (match_func(PCI_VENDOR(f->dev_id),
-			       PCI_PRODUCT(f->dev_id),
-			       f->dev_class)) {
-			if (!l)
-				l = &f->link;
-			else
-				list_insert(l, &f->link);
-		}
-	}
-	return l;
-}
-
 int
 server_init(void)
 {
@@ -392,6 +379,7 @@ server_init(void)
 	}
 
 	list_init(&serv->pci_func_list);
+	list_init(&serv->pci_user_list);
 	serv->pci_map_base = CONFIG_PCI_MMIO_ALLOC_BASE;
 
 	serv->uio_handle = uio_init();
@@ -412,48 +400,297 @@ server_init(void)
 	return 0;
 }
 
+static struct pci_user *
+pci_serv_find_user_by_task(task_t task)
+{
+	list_t n = list_first(&serv->pci_user_list);
+	LOG_FUNCTION_NAME_ENTRY();
+
+	if (list_empty(&serv->pci_user_list))
+		return NULL;
+
+	do {
+		struct pci_user *user = list_entry(n, struct pci_user, link);
+		if (user->task == task) {
+			LOG_FUNCTION_NAME_EXIT_PTR(user);
+			return user;
+		}
+		n = list_next(n);
+	} while (n != &serv->pci_user_list);
+	LOG_FUNCTION_NAME_EXIT_PTR(NULL);
+	return NULL;
+}
+
+static struct pci_func *
+pci_serv_find_func(struct pci_user *user, pci_func_id_t *func)
+{
+	list_t n = list_first(&serv->pci_user_list);
+	LOG_FUNCTION_NAME_ENTRY();
+
+	if (list_empty(&serv->pci_user_list))
+		return NULL;
+
+	do {
+		struct pci_scan_node *node = 
+			list_entry(n, struct pci_scan_node, link);
+		struct pci_func *pf = node->pf;
+		
+		if (func->busno == pf->bus->busno &&
+		    func->dev_id == pf->dev_id &&
+		    func->dev_class == pf->dev_class &&
+		    func->func == pf->func &&
+		    func->dev == pf->dev) {
+			LOG_FUNCTION_NAME_EXIT_PTR(pf);
+			return pf;
+		}
+		n = list_next(n);
+	} while (n != &serv->pci_user_list);
+	LOG_FUNCTION_NAME_EXIT_PTR(NULL);
+	return NULL;
+}
+
+static void
+pci_serv_free_scan_result(struct pci_user *user)
+{
+	list_t p = list_first(&user->pci_scan_result);
+
+	while (!list_empty(&user->pci_scan_result)) {
+		struct pci_scan_node *node =
+			list_entry(p, struct pci_scan_node, link);
+		list_remove(&node->link);
+		free(node);
+		p = list_next(p);
+	}
+}
+
+static void
+pci_serv_probe_device(pci_probe_t *probe, struct pci_user *user)
+{
+	list_t n = list_first(&serv->pci_func_list);
+
+	LOG_FUNCTION_NAME_ENTRY();
+	if (list_empty(&serv->pci_func_list))
+		return;
+	if (!list_empty(&user->pci_scan_result))
+		/* already has scan result? free it */
+		pci_serv_free_scan_result(user);
+
+	do {
+		struct pci_func *pf = list_entry(n, struct pci_func, link);
+		uint8_t matched = 0;
+		if (probe->type & PCI_MATCH_VENDOR_PRODUCT)
+			matched = (probe->pci_vendor == PCI_VENDOR(pf->dev_id))
+				&&(probe->pci_product == PCI_PRODUCT(pf->dev_id));
+		if (probe->type & PCI_MATCH_VENDOR_ONLY)
+			matched = (probe->pci_vendor == PCI_VENDOR(pf->dev_id));
+		if (probe->type & PCI_MATCH_PRODUCT_ONLY)
+			matched = (probe->pci_product == PCI_PRODUCT(pf->dev_id));
+		if (probe->type & PCI_MATCH_CLASS)
+			matched = (probe->pci_class == pf->dev_class);
+		if (probe->type & PCI_MATCH_PROBE)
+			matched = 1;
+		if (matched) {
+			struct pci_scan_node *node;
+			node = malloc(sizeof(*node));
+			node->pf = pf;
+			list_init(&node->link);
+			list_insert(&user->pci_scan_result, &node->link);
+			DPRINTF(VERBOSE, "probe matched\n");
+		}
+		n = list_next(n);
+	} while (n != &serv->pci_func_list);
+	/* initial iterator */
+	user->pci_scan_itr = list_first(&user->pci_scan_result);
+	LOG_FUNCTION_NAME_EXIT_NORET();
+}
+
+static void
+pci_serv_add_user(struct pci_user *user)
+{
+	list_insert(&serv->pci_user_list, &user->link);
+}
+
+static void
+pci_serv_remove_user(struct pci_user *user)
+{
+	list_remove(&user->link);
+}
+
+static int 
+pci_connect(struct msg *msg, struct msg **reply, size_t *reply_size)
+{
+	task_t task = msg->hdr.task;
+	struct pci_user *user;
+	*reply = NULL;
+
+	LOG_FUNCTION_NAME_ENTRY();
+	if (pci_serv_find_user_by_task(task))
+		return EEXIST;
+
+	user = malloc(sizeof(struct pci_user));
+	if (!user)
+		return ENOMEM;
+	list_init(&user->link);
+	list_init(&user->pci_scan_result);
+	user->task = task;
+	pci_serv_add_user(user);
+
+	LOG_FUNCTION_NAME_EXIT(0);
+	return 0;
+}
+
+static int 
+pci_disconnect(struct msg *msg, struct msg **reply, size_t *reply_size)
+{
+	task_t task = msg->hdr.task;
+	struct pci_user *user;
+	*reply = NULL;
+
+	user = pci_serv_find_user_by_task(task);
+	if (!user)
+		return ENOENT;
+	pci_serv_remove_user(user);
+	free(user);
+	return 0;
+}
+
+static int
+pci_probe_deivce(struct msg *msg, struct msg **reply, size_t *reply_size)
+{
+	struct pci_probe_msg *m = (struct pci_probe_msg *)msg;
+	task_t task = m->hdr.task;
+	struct pci_user *user;
+	*reply = NULL;
+
+	user = pci_serv_find_user_by_task(task);
+	if (!user)
+		return ENOENT;
+	
+	pci_serv_probe_device(&m->probe, user);
+	return 0;
+}
+
+static int
+pci_probe_get_result(struct msg *msg, struct msg **reply, size_t *reply_size)
+{
+	task_t task = msg->hdr.task;
+	struct pci_probe_reply *r;
+	struct pci_func *pf;
+	struct pci_scan_node *node;
+	struct pci_user *user;
+	LOG_FUNCTION_NAME_ENTRY();
+
+	r = malloc(sizeof(*r));
+	memset(r, 0, sizeof(*r));
+	*reply = (struct msg *)r;
+	*reply_size = sizeof(*r);
+
+	user = pci_serv_find_user_by_task(task);
+	if (!user)
+		return ENOENT;
+
+	if (user->pci_scan_itr == &user->pci_scan_result) {
+		r->eof = 1;
+		return 0;
+	}
+
+	node = list_entry(user->pci_scan_itr, struct pci_scan_node, link);
+	pf = node->pf;
+	r->func.busno = pf->bus->busno;
+	r->func.dev_id = pf->dev_id;
+	r->func.dev_class = pf->dev_class;
+	r->func.dev = pf->dev;
+	r->func.func = pf->func;
+	memcpy(r->reg_base, pf->reg_base, sizeof(pf->reg_base));
+	memcpy(r->reg_size, pf->reg_size, sizeof(pf->reg_size));
+	r->irqline = pf->irq_line;
+
+	user->pci_scan_itr = list_next(user->pci_scan_itr);
+
+	LOG_FUNCTION_NAME_EXIT(0);
+	return 0;
+}
+
+static int
+pci_func_acquire(struct msg *msg, struct msg **reply, size_t *reply_size)
+{
+	struct pci_acquire_msg *m = (struct pci_acquire_msg *)msg;
+	task_t task = m->hdr.task;
+	struct pci_user *user;
+	struct pci_func *pf;
+	*reply = NULL;
+
+	user = pci_serv_find_user_by_task(task);
+	if (!user)
+		return EEXIST;
+	
+	pf = pci_serv_find_func(user, &m->func);
+	if (!pf)
+		return EEXIST;
+	if (pf->owner)
+		return EBUSY;
+	pf->owner = task;
+	return 0;
+}
+
+static int
+pci_func_enable(struct msg *msg, struct msg **reply, size_t *reply_size)
+{
+	struct pci_enable_msg *m = (struct pci_enable_msg *)msg;
+	task_t task = m->hdr.task;
+	uint8_t flag = m->flag;
+	struct pci_user *user;
+	struct pci_func *pf;
+	*reply = NULL;
+
+	user = pci_serv_find_user_by_task(task);
+	if (!user)
+		return EEXIST;
+	
+	pf = pci_serv_find_func(user, &m->func);
+	if (!pf)
+		return EEXIST;
+	_pci_func_enable(pf, flag);
+	return 0;
+}
+
+static int
+pci_func_release(struct msg *msg, struct msg **reply, size_t *reply_size)
+{
+	struct pci_release_msg *m = (struct pci_release_msg *)msg;
+	task_t task = m->hdr.task;
+	struct pci_user *user;
+	struct pci_func *pf;
+	*reply = NULL;
+
+	user = pci_serv_find_user_by_task(task);
+	if (!user)
+		return EEXIST;
+	
+	pf = pci_serv_find_func(user, &m->func);
+	if (!pf)
+		return EEXIST;
+	pf->owner = 0;
+	return 0;
+}
+
 /*
  * Message mapping
   */
 struct msg_map {
 	int	code;
-	int	(*func)(struct msg *);
+	int	(*func)(struct msg *, struct msg **reply, size_t *reply_size);
 };
 
 static const struct msg_map pcimsg_map[] = {
-	{ PCI_CONNECT,		pci_connect }
+	{ PCI_CONNECT,		pci_connect },
 	{ PCI_PROBE_DEVICE,	pci_probe_deivce },
+	{ PCI_PROBE_GET_RESULT,	pci_probe_get_result },
 	{ PCI_FUNC_ACQUIRE,	pci_func_acquire },
 	{ PCI_FUNC_ENABLE,	pci_func_enable },
 	{ PCI_FUNC_RELEASE,	pci_func_release },
+	{ PCI_DISCONNECT,	pci_disconnect },
 };
-
-static int pci_connect(struct msg *msg)
-{
-	LOG_FUNCTION_NAME_ENTRY();
-	LOG_FUNCTION_NAME_EXIT(0);
-	return 0;
-}
-
-static int pci_probe_deivce(struct msg *msg)
-{
-	return 0;
-}
-
-static int pci_func_acquire(struct msg *msg)
-{
-	return 0;
-}
-
-static int pci_func_enable(struct msg *msg)
-{
-	return 0;
-}
-
-static int pci_func_release(struct msg *msg)
-{
-	return 0;
-}
 
 /*
  * Main routine for pci server.
@@ -509,6 +746,9 @@ main(int argc, char *argv[])
 	 * Message loop
 	 */
 	for (;;) {
+		struct msg *reply;
+		size_t reply_size;
+
 		/*
 		 * Wait for an incoming request.
 		 */
@@ -529,7 +769,7 @@ main(int argc, char *argv[])
 			map = &pcimsg_map[0];
 			while (map->code != 0) {
 				if (map->code == msg.hdr.code) {
-					error = (*map->func)(&msg);
+					error = (*map->func)(&msg, &reply, &reply_size);
 					break;
 				}
 				map++;
@@ -538,13 +778,18 @@ main(int argc, char *argv[])
 		/*
 		 * Reply to the client.
 		 */
-		msg.hdr.status = error;
-		msg_reply(obj, &msg, sizeof(msg));
-#ifdef DBG
-		if (map != NULL && error != 0)
-			DPRINTF(VERBOSE, "msg code=%x error=%d\n",
-				 map->code, error);
-#endif
+		if (reply) {
+			/* func has its own reply message */
+			reply->hdr.status = error;
+			reply->hdr.code = msg.hdr.code;
+			reply->hdr.task = msg.hdr.task;
+			msg_reply(obj, reply, reply_size);
+			free(reply);
+		} else {
+			/* simply acts as RPC */
+			msg.hdr.status = error;
+			msg_reply(obj, &msg, sizeof(msg));
+		}
 	}
 }
 

@@ -1,7 +1,6 @@
 #ifndef _DBG_H_
 #define _DBG_H_
 
-
 /*
  * Usage:
  *
@@ -31,16 +30,20 @@ enum {
 
 /* system servers should use dprintf */
 #ifdef _STANDALONE
-#undef printf
-#define printf dprintf
+#define _printf dprintf
+#else
+#define _printf printf
 #endif
 
 #define DPRINTF(what, fmt, ...) do { \
 	if (debugflags & DBGBIT(what)) \
-	printf("%s" fmt, MODULE_NAME ": ", ## __VA_ARGS__); \
+	_printf("%s" fmt, MODULE_NAME ": ", ## __VA_ARGS__); \
 } while (0)
+#undef ASSERT
+#define ASSERT(e) dassert(e)
 #else
 #define DPRINTF(what, fmt, ...) do {} while (0)
+#define DASSERT(what, fmt, ...) do {} while (0)
 #endif
 
 
@@ -48,6 +51,8 @@ enum {
 	DPRINTF(TRACE, "Calling %s()\n",  __func__);
 #define LOG_FUNCTION_NAME_EXIT_NORET() \
 	DPRINTF(TRACE, "Leaving %s()\n",  __func__);
+#define LOG_FUNCTION_NAME_EXIT_PTR(r) \
+	DPRINTF(TRACE, "Leaving %s(), ret=%p\n",  __func__, r);
 #define LOG_FUNCTION_NAME_EXIT(r) \
 	DPRINTF(TRACE, "Leaving %s(), ret=%d\n",  __func__, r);
 

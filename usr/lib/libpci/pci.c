@@ -31,53 +31,60 @@
  * pci.c - User-space pci library
  */
 
+#define DBG
+#define MODULE_NAME  "libpci"
+
 #include <sys/prex.h>
 #include <sys/param.h>
 #include <sys/cdefs.h>
 #include <sys/list.h>
 #include <sys/endian.h>
+#include <sys/dbg.h>
+#include <assert.h>
 #include <ipc/pci.h>
 #include <ipc/ipc.h>
 #include <pci.h>
 #include <uio.h>
 
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
-struct pci_scan_result {
-	int             num_func;
-	struct list	func_list;
-	struct list	itr;
-};
+#ifdef DBG
+static int debugflags = DBGBIT(INFO);
+#endif
+
 
 struct pci_handle {
 	object_t	pci_object;
-	struct pci_scan_result *result;
+	struct list	func_list;
 	struct uio_handle *uio;
 };
 
 struct pci_func_handle {
 	struct pci_handle *pci_handle;
 	struct list	link;
-	pci_func_t      func;
+	pci_func_id_t	func;
 	int		(*irq_handler)(void *args);
 	void		*args;
-	struct uio_mem	bar[6];
+	struct uio_mem	*bar[6];
 	uint32_t	reg_base[6];
 	uint32_t	reg_size[6];
 	int		irqline;
 };
 
 static void
-pci_free_scan_result(struct pci_scan_result *result)
+pci_free_func_hanlde(struct pci_handle *handle)
 {
-	struct pci_func_handle *handle;
-	list_t n = list_first(&result->func_list);
-	while (!list_empty(n)) {
-		handle = list_entry(n, struct pci_func_handle, link);
+	struct pci_func_handle *func_handle;
+	list_t n = list_first(&handle->func_list);
+	while (!list_empty(&handle->func_list)) {
+		func_handle = list_entry(n, struct pci_func_handle, link);
+		list_remove(&func_handle->link);
+		free(func_handle);
 		n = list_next(n);
-		free(handle);
 	}
-	free(result);
 }
 
 struct pci_handle *
@@ -86,133 +93,168 @@ pci_attach(void)
 	struct pci_handle *handle;
 	struct msg msg;
 	int ret;
+	LOG_FUNCTION_NAME_ENTRY();
 
 	handle = malloc(sizeof(struct pci_handle));
 	if (!handle)
 		return NULL;
 	memset(handle, 0, sizeof(handle));
+	list_init(&handle->func_list);
 
-	ret = object_lookup("!pci", &handle->pci_object)
+	ret = object_lookup("!pci", &handle->pci_object);
 	if (ret) {
-		dprintf("cannot get pci object\n");
+		DPRINTF(INFO, "cannot get pci object\n");
 		return NULL;
 	}
 
 	msg.hdr.code = PCI_CONNECT;
-	ret = msg_send(&handle->pci_object, &msg);
+	ret = msg_send(handle->pci_object, &msg, sizeof(msg));
 	if (ret) {
-		dprintf("cannot connect to pci server\n");
-		return NULL;
+		DPRINTF(INFO, "cannot connect to pci server\n");
+		goto err_free_handle;
 	}
+	if (msg.hdr.status)
+		goto err_free_handle;
 
+	LOG_FUNCTION_NAME_EXIT_PTR(handle);
 	return handle;
+err_free_handle:
+	free(handle);
+	LOG_FUNCTION_NAME_EXIT_PTR(NULL);
+	return NULL;
+}
+
+void
+pci_detach(struct pci_handle *handle)
+{
+	struct msg msg;
+
+	msg.hdr.code = PCI_DISCONNECT;
+	msg_send(handle->pci_object, &msg, sizeof(msg));
+	pci_free_func_hanlde(handle);
+	free(handle);
 }
 
 int
 pci_scan_device(struct pci_handle *handle, pci_probe_t probe)
 {
 	struct pci_probe_msg pm;
-	struct pci_probe_reply pr;
-	struct pci_scan_result *result;
-	struct pci_func_handle *func_handle;
-	int nr_probed = 0;
+	struct msg msg;
 	int ret;
+
+	LOG_FUNCTION_NAME_ENTRY();
+	if (!list_empty(&handle->func_list))
+		pci_free_func_hanlde(handle);
+	list_init(&handle->func_list);
+
 	pm.hdr.code = PCI_PROBE_DEVICE;
 	pm.probe = probe;
-	list_init(&result->func_list);
-	list_init(&result->itr);
-
-	/* if we have scan_result already, drop it */
-	if (handle->result) {
-		pci_free_scan_result(&handle->result);
+	ret = msg_send(handle->pci_object, &pm, sizeof(pm));
+	if (ret) {
+		LOG_FUNCTION_NAME_EXIT(ret);
+		return ret;
 	}
-
-	result = malloc(sizeof(struct pci_scan_result));
-	if (result)
-		return ENOMEM;
-
-	while (1) {
-		ret = msg_send(&handle->pci_object, &pm);
-		if (ret)
-			return ret;
-
-		ret = msg_recv(&handle->pci_object, &pr);
-		if (pr.eof)
-			break;
-
-		/* we found a function */
-		nr_probed++;
-		func_handle = malloc(sizeof(struct pci_func_handle));
-		if (!func_handle) {
-			pci_free_scan_result(result);
-			handle->result = NULL;
-			return ENOMEM;
-		}
-		list_init(&func_handle->link);
-		func_handle->func = pr.func;
-		func_handle->pci_handle = handle;
-		memcpy(func_handle->reg_base, pr.reg_base, sizeof(pr.reg_base));
-		memcpy(func_handle->reg_size, pr.reg_size, sizeof(pr.reg_size));
-		func_handle->irqline = pr.irqline;
-		list_insert(&result->func_list, &func_handle->link);
-	}
-
-	handle->result = result;
-	result->itr = list_first(&result->func_list);
-
-	return 0;
+	LOG_FUNCTION_NAME_EXIT(msg.hdr.status);
+	return msg.hdr.status;
 }
 
-pci_func_handle *
-pci_get_func(struct pci_handle *handle)
+int
+pci_get_func(struct pci_handle *handle, struct pci_func_handle **func)
 {
-	struct pci_scan_result *result = handle->result;
-	if (!result)
-		return result;
-	if (result->itr == NULL)
-		return NULL;
-	handle = list_entry(result->itr, struct pci_func_handle, link);
-	result->itr = list_next(&result->itr);
-	return handle;
+	struct pci_func_handle *func_handle;
+	struct pci_probe_reply pr;
+	int ret;
+	LOG_FUNCTION_NAME_ENTRY();
+	pr.hdr.code = PCI_PROBE_GET_RESULT;
+	ret = msg_send(handle->pci_object, &pr, sizeof(pr));
+	if (ret) {
+		LOG_FUNCTION_NAME_EXIT(ret);
+		return ret;
+	}
+	if (pr.hdr.status) {
+		LOG_FUNCTION_NAME_EXIT(pr.hdr.status);
+		return pr.hdr.status;
+	}
+
+	if (pr.eof) {
+		LOG_FUNCTION_NAME_EXIT(EOF);
+		return EOF;
+	}
+
+	/* we found a function */
+	func_handle = malloc(sizeof(struct pci_func_handle));
+	if (!func_handle) {
+		LOG_FUNCTION_NAME_EXIT(ENOMEM);
+		return ENOMEM;
+	}
+
+	list_init(&func_handle->link);
+	func_handle->func = pr.func;
+	func_handle->pci_handle = handle;
+	memcpy(func_handle->reg_base, pr.reg_base, sizeof(pr.reg_base));
+	memcpy(func_handle->reg_size, pr.reg_size, sizeof(pr.reg_size));
+	func_handle->irqline = pr.irqline;
+	list_insert(&handle->func_list, &func_handle->link);
+	*func = func_handle;
+
+	LOG_FUNCTION_NAME_EXIT(0);
+	return 0;
 }
 
 int
 pci_func_enable(struct pci_func_handle *handle, uint8_t flag)
 {
-	struct pci_handle *pci_hanlde = handle->pci_handle;
-	struct pci_enable_msg pe;
-	int ret;
+	struct pci_handle *pci_handle = handle->pci_handle;
+	struct pci_enable_msg msg;
 
-	pe.hdr.code = PCI_FUNC_ENABLE;
-	pe.func = handle->func;
-	pe.flag = flag;
-	return msg_send(&pci_handle->pci_object, &pe);	
+	msg.hdr.code = PCI_FUNC_ENABLE;
+	msg.func = handle->func;
+	msg.flag = flag;
+	return msg_send(pci_handle->pci_object, &msg, sizeof(msg));
 }
 
 int
 pci_func_acquire(struct pci_func_handle *handle)
 {
-	struct pci_handle *pci_hanlde = handle->pci_handle;
+	struct pci_handle *pci_handle = handle->pci_handle;
 	struct pci_acquire_msg msg;
-	int ret;
 
 	msg.hdr.code = PCI_FUNC_ACQUIRE;
 	msg.func = handle->func;
-	msg.task = task_self();
-	return msg_send(&pci_handle->pci_object, &msg);
+	return msg_send(pci_handle->pci_object, &msg, sizeof(msg));
 }
 
 int
 pci_func_release(struct pci_func_handle *handle)
 {
-	struct pci_handle *pci_hanlde = handle->pci_handle;
+	struct pci_handle *pci_handle = handle->pci_handle;
 	struct pci_release_msg msg;
-	int ret;
 
 	msg.hdr.code = PCI_FUNC_RELEASE;
 	msg.func = handle->func;
-	msg.task = task_self();
-	return msg_send(&pci_handle->pci_object, &msg);
+	return msg_send(pci_handle->pci_object, &msg, sizeof(msg));
 }
 
+void
+pci_func_get_mem_region(struct pci_func_handle *handle, int bar,
+			struct pci_mem_region *region)
+{
+	ASSERT(region != NULL);
+	region->base = handle->reg_base[bar];
+	region->size = handle->reg_size[bar];
+}
+
+void
+pci_func_get_irqline(struct pci_func_handle *handle, uint8_t *irqline)
+{
+	ASSERT(irqline != NULL);
+	*irqline = handle->irqline;
+}
+
+void
+pci_func_get_func_id(struct pci_func_handle *handle, pci_func_id_t *func)
+{
+	ASSERT(func != NULL);
+	*func = handle->func;
+}
 

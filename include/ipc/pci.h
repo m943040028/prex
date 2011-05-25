@@ -34,35 +34,33 @@
 #include <pci_defs.h>
 
 struct pci_probe_msg {
-	struct msg_hdr	hdr;
+	struct msg_header hdr;
 	pci_probe_t	probe;
 };
 
 struct pci_probe_reply {
-	struct msg_hdr	hdr;
-	pci_func_t	func;
+	struct msg_header hdr;
+	pci_func_id_t	func;
 	uint32_t	reg_base[6];
-	uint32_t	reg_size[6]
+	uint32_t	reg_size[6];
 	uint16_t	irqline;
-	bool		eof;
+	uint8_t		eof;
 };
 
 struct pci_acquire_msg {
-	struct msg_hdr	hdr;
-	pci_func_t	func;
-	task_t		task;
+	struct msg_header hdr;
+	pci_func_id_t	func;
 };
 
 struct pci_enable_msg {
-	struct msg_hdr	hdr;
-	pci_func_t	func;
+	struct msg_header hdr;
+	pci_func_id_t	func;
 	uint8_t		flag;
 };
 
 struct pci_release_msg {
-	struct msg_hdr	hdr;
-	pci_func_t	func;
-	task_t		task;
+	struct msg_header hdr;
+	pci_func_id_t	func;
 };
 
 /*
@@ -70,8 +68,10 @@ struct pci_release_msg {
  */
 #define PCI_CONNECT		0x00000500
 #define PCI_PROBE_DEVICE	0x00000501
-#define PCI_FUNC_ACQUIRE	0x00000502
-#define PCI_FUNC_ENABLE		0x00000503
-#define PCI_FUNC_RELEASE	0x00000504
+#define PCI_PROBE_GET_RESULT	0x00000502
+#define PCI_FUNC_ACQUIRE	0x00000503
+#define PCI_FUNC_ENABLE		0x00000504
+#define PCI_FUNC_RELEASE	0x00000505
+#define PCI_DISCONNECT		0x00000506
 
-#endif /* !_IPC_POW_H */
+#endif /* !_IPC_PCI_H */

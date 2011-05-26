@@ -32,6 +32,7 @@
  */
 
 #include <sys/param.h>
+#include <errno.h>
 
 #define PCIC0_INTERNAL_BASE		(0xef480000)
 
@@ -61,24 +62,31 @@ enum pcic0_internal_regs {
 };
 
 #ifdef CONFIG_AMCC_405EP
-static uint8_t irq_lines[] = 
+typedef struct pci_irq {
+	uint8_t		nr;
+	uint8_t		occupied;
+} pci_irq_t;
+pci_irq_t irqs[] = 
 {
-	3, 16, 18, 0xff
+	{ 3 }, { 16 }, { 18 }, { 0xff }
 };
 #else
 #error "You need to select one PowerPC implementation"
 #endif
 
 int
-platform_pci_probe_irq(uint8_t irqline)
+platform_pci_probe_irq(uint8_t *irqline)
 {
 	int i = 0;
-	while (irq_lines[i] != 0xff) {
-		if (irq_lines[i] == irqline)
-			return 1;
+	while (irqs[i].nr != 0xff) {
+		if (!irqs[i].occupied) {
+			irqs[i].occupied = 1;
+			*irqline = irqs[i].nr;
+			return 0;
+		}
 		i++;
 	}
-	return 0;
+	return ENOSPC;
 }
 
 int

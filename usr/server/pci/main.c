@@ -29,7 +29,7 @@
  */
 
 /*
- * pci.c - pci server
+ * main.c - pci server
  */
 
 #define DBG
@@ -133,7 +133,7 @@ struct pci_serv_priv {
 	struct uio_handle *uio_handle;
 	struct uio_mem *config_space;
 };
-static struct pci_serv_priv *serv;
+static struct pci_serv_priv *__serv;
 
 /* forward declartion */
 static uint32_t pci_conf_read(struct pci_func *f, uint32_t off);
@@ -154,7 +154,7 @@ pci_conf1_set_addr(uint32_t bus,
 
 	uint32_t v = (1 << 31) |	/* config-space */
 		(bus << 16) | (dev << 11) | (func << 8) | (offset);
-	uio_write32(serv->config_space, PCI_CFG_ADDR, host_to_pci(v));
+	uio_write32(__serv->config_space, PCI_CFG_ADDR, host_to_pci(v));
 }
 
 static const char *pci_class[] = 
@@ -185,11 +185,11 @@ pci_print_func(struct pci_func *f)
 static uint8_t
 pci_allocate_irqline(void)
 {
-	int irq;
-	for (irq = 0; irq < 0xff; irq++) {
-		if (platform_pci_probe_irq(irq))
-			return irq;
-	}
+	uint8_t irq;
+	int ret;
+	ret = platform_pci_probe_irq(&irq);
+	if (ret) /* out of irq allocation space */
+		return 0;
 	return irq;
 }
 
@@ -213,10 +213,10 @@ pci_allocate_memory(size_t size)
 	paddr_t aligned_addr;
 
 	/* For now, simply align to required size. */
-	aligned_addr = (serv->pci_map_base+size-1) & ~(size-1);
+	aligned_addr = (__serv->pci_map_base+size-1) & ~(size-1);
 
-	serv->pci_map_base = aligned_addr + size;
-	if (serv->pci_map_base > 
+	__serv->pci_map_base = aligned_addr + size;
+	if (__serv->pci_map_base > 
 	    CONFIG_PCI_MMIO_ALLOC_BASE + CONFIG_PCI_MMIO_ALLOC_SIZE)
 		return 0; /* address exhausted */
 
@@ -255,7 +255,7 @@ pci_scan_bus(struct pci_bus *bus)
 			af = malloc(sizeof(*af));
 			*af = f;
 			list_init(&af->link);
-			list_insert(&serv->pci_func_list, &af->link);
+			list_insert(&__serv->pci_func_list, &af->link);
 			af->dev_id = dev_id;
 
 			intr = pci_conf_read(af, PCI_INTERRUPT_REG);
@@ -285,14 +285,14 @@ static uint32_t
 pci_conf_read(struct pci_func *f, uint32_t off)
 {
 	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);
-	return pci_to_host(uio_read32(serv->config_space, PCI_CFG_DATA));
+	return pci_to_host(uio_read32(__serv->config_space, PCI_CFG_DATA));
 }
 
 static void
 pci_conf_write(struct pci_func *f, uint32_t off, uint32_t v)
 {
 	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);
-	uio_write32(serv->config_space, PCI_CFG_DATA, host_to_pci(v));
+	uio_write32(__serv->config_space, PCI_CFG_DATA, host_to_pci(v));
 }
 
 static int
@@ -372,26 +372,26 @@ int
 server_init(void)
 {
 	LOG_FUNCTION_NAME_ENTRY();
-	serv = malloc(sizeof(struct pci_serv_priv));
-	if (!serv) {
+	__serv = malloc(sizeof(struct pci_serv_priv));
+	if (!__serv) {
 		LOG_FUNCTION_NAME_EXIT(ENOMEM);
 		return ENOMEM;
 	}
 
-	list_init(&serv->pci_func_list);
-	list_init(&serv->pci_user_list);
-	serv->pci_map_base = CONFIG_PCI_MMIO_ALLOC_BASE;
+	list_init(&__serv->pci_func_list);
+	list_init(&__serv->pci_user_list);
+	__serv->pci_map_base = CONFIG_PCI_MMIO_ALLOC_BASE;
 
-	serv->uio_handle = uio_init();
-	if (!serv->uio_handle) {
+	__serv->uio_handle = uio_init();
+	if (!__serv->uio_handle) {
 		LOG_FUNCTION_NAME_EXIT(EIO);
 		return EIO;
 	}
 
 	/* map pci configuration space */
-	serv->config_space = uio_map_iomem(serv->uio_handle, "config_space", 
-					   CONFIG_PCI_CONFIG_BASE, PAGE_SIZE);
-	if (!serv->config_space)
+	__serv->config_space = uio_map_iomem(__serv->uio_handle, "config_space",
+					     CONFIG_PCI_CONFIG_BASE, PAGE_SIZE);
+	if (!__serv->config_space)
 		return EIO;
 
 	pci_init();
@@ -403,10 +403,10 @@ server_init(void)
 static struct pci_user *
 pci_serv_find_user_by_task(task_t task)
 {
-	list_t n = list_first(&serv->pci_user_list);
+	list_t n = list_first(&__serv->pci_user_list);
 	LOG_FUNCTION_NAME_ENTRY();
 
-	if (list_empty(&serv->pci_user_list))
+	if (list_empty(&__serv->pci_user_list))
 		return NULL;
 
 	do {
@@ -416,7 +416,7 @@ pci_serv_find_user_by_task(task_t task)
 			return user;
 		}
 		n = list_next(n);
-	} while (n != &serv->pci_user_list);
+	} while (n != &__serv->pci_user_list);
 	LOG_FUNCTION_NAME_EXIT_PTR(NULL);
 	return NULL;
 }
@@ -424,10 +424,10 @@ pci_serv_find_user_by_task(task_t task)
 static struct pci_func *
 pci_serv_find_func(struct pci_user *user, pci_func_id_t *func)
 {
-	list_t n = list_first(&serv->pci_user_list);
+	list_t n = list_first(&__serv->pci_user_list);
 	LOG_FUNCTION_NAME_ENTRY();
 
-	if (list_empty(&serv->pci_user_list))
+	if (list_empty(&__serv->pci_user_list))
 		return NULL;
 
 	do {
@@ -444,7 +444,7 @@ pci_serv_find_func(struct pci_user *user, pci_func_id_t *func)
 			return pf;
 		}
 		n = list_next(n);
-	} while (n != &serv->pci_user_list);
+	} while (n != &__serv->pci_user_list);
 	LOG_FUNCTION_NAME_EXIT_PTR(NULL);
 	return NULL;
 }
@@ -466,10 +466,10 @@ pci_serv_free_scan_result(struct pci_user *user)
 static void
 pci_serv_probe_device(pci_probe_t *probe, struct pci_user *user)
 {
-	list_t n = list_first(&serv->pci_func_list);
+	list_t n = list_first(&__serv->pci_func_list);
 
 	LOG_FUNCTION_NAME_ENTRY();
-	if (list_empty(&serv->pci_func_list))
+	if (list_empty(&__serv->pci_func_list))
 		return;
 	if (!list_empty(&user->pci_scan_result))
 		/* already has scan result? free it */
@@ -498,7 +498,7 @@ pci_serv_probe_device(pci_probe_t *probe, struct pci_user *user)
 			DPRINTF(VERBOSE, "probe matched\n");
 		}
 		n = list_next(n);
-	} while (n != &serv->pci_func_list);
+	} while (n != &__serv->pci_func_list);
 	/* initial iterator */
 	user->pci_scan_itr = list_first(&user->pci_scan_result);
 	LOG_FUNCTION_NAME_EXIT_NORET();
@@ -507,7 +507,7 @@ pci_serv_probe_device(pci_probe_t *probe, struct pci_user *user)
 static void
 pci_serv_add_user(struct pci_user *user)
 {
-	list_insert(&serv->pci_user_list, &user->link);
+	list_insert(&__serv->pci_user_list, &user->link);
 }
 
 static void

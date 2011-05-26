@@ -3,7 +3,7 @@
 
 __BEGIN_DECLS
 int	platform_pci_init(void);
-int	platform_pci_probe_irq(uint8_t irqline);
+int	platform_pci_probe_irq(uint8_t *irqline);
 __END_DECLS
 
 #endif

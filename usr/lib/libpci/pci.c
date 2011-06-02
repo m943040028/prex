@@ -65,7 +65,7 @@ struct pci_handle {
 struct pci_func_handle {
 	struct pci_handle *pci_handle;
 	struct list	link;
-	pci_func_id_t	func;
+	pci_func_id_t	id;
 	int		(*irq_handler)(void *args);
 	void		*args;
 	struct uio_mem	*bar[6];
@@ -189,7 +189,7 @@ pci_get_func(struct pci_handle *handle, struct pci_func_handle **func)
 	}
 
 	list_init(&func_handle->link);
-	func_handle->func = pr.func;
+	func_handle->id = pr.id;
 	func_handle->pci_handle = handle;
 	memcpy(func_handle->reg_base, pr.reg_base, sizeof(pr.reg_base));
 	memcpy(func_handle->reg_size, pr.reg_size, sizeof(pr.reg_size));
@@ -208,7 +208,7 @@ pci_func_enable(struct pci_func_handle *handle, uint8_t flag)
 	struct pci_enable_msg msg;
 
 	msg.hdr.code = PCI_FUNC_ENABLE;
-	msg.func = handle->func;
+	msg.id = handle->id;
 	msg.flag = flag;
 	return msg_send(pci_handle->pci_object, &msg, sizeof(msg));
 }
@@ -220,7 +220,7 @@ pci_func_acquire(struct pci_func_handle *handle)
 	struct pci_acquire_msg msg;
 
 	msg.hdr.code = PCI_FUNC_ACQUIRE;
-	msg.func = handle->func;
+	msg.id = handle->id;
 	return msg_send(pci_handle->pci_object, &msg, sizeof(msg));
 }
 
@@ -231,7 +231,7 @@ pci_func_release(struct pci_func_handle *handle)
 	struct pci_release_msg msg;
 
 	msg.hdr.code = PCI_FUNC_RELEASE;
-	msg.func = handle->func;
+	msg.id = handle->id;
 	return msg_send(pci_handle->pci_object, &msg, sizeof(msg));
 }
 
@@ -252,9 +252,9 @@ pci_func_get_irqline(struct pci_func_handle *handle, uint8_t *irqline)
 }
 
 void
-pci_func_get_func_id(struct pci_func_handle *handle, pci_func_id_t *func)
+pci_func_get_func_id(struct pci_func_handle *handle, pci_func_id_t *id)
 {
-	ASSERT(func != NULL);
-	*func = handle->func;
+	ASSERT(id != NULL);
+	*id = handle->id;
 }
 

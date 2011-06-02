@@ -422,7 +422,7 @@ pci_serv_find_user_by_task(task_t task)
 }
 
 static struct pci_func *
-pci_serv_find_func(struct pci_user *user, pci_func_id_t *func)
+pci_serv_find_func(struct pci_user *user, pci_func_id_t *id)
 {
 	list_t n = list_first(&__serv->pci_user_list);
 	LOG_FUNCTION_NAME_ENTRY();
@@ -435,11 +435,11 @@ pci_serv_find_func(struct pci_user *user, pci_func_id_t *func)
 			list_entry(n, struct pci_scan_node, link);
 		struct pci_func *pf = node->pf;
 		
-		if (func->busno == pf->bus->busno &&
-		    func->dev_id == pf->dev_id &&
-		    func->dev_class == pf->dev_class &&
-		    func->func == pf->func &&
-		    func->dev == pf->dev) {
+		if (id->busno == pf->bus->busno &&
+		    id->dev_id == pf->dev_id &&
+		    id->dev_class == pf->dev_class &&
+		    id->func == pf->func &&
+		    id->dev == pf->dev) {
 			LOG_FUNCTION_NAME_EXIT_PTR(pf);
 			return pf;
 		}
@@ -596,11 +596,11 @@ pci_probe_get_result(struct msg *msg, struct msg **reply, size_t *reply_size)
 
 	node = list_entry(user->pci_scan_itr, struct pci_scan_node, link);
 	pf = node->pf;
-	r->func.busno = pf->bus->busno;
-	r->func.dev_id = pf->dev_id;
-	r->func.dev_class = pf->dev_class;
-	r->func.dev = pf->dev;
-	r->func.func = pf->func;
+	r->id.busno = pf->bus->busno;
+	r->id.dev_id = pf->dev_id;
+	r->id.dev_class = pf->dev_class;
+	r->id.dev = pf->dev;
+	r->id.func = pf->func;
 	memcpy(r->reg_base, pf->reg_base, sizeof(pf->reg_base));
 	memcpy(r->reg_size, pf->reg_size, sizeof(pf->reg_size));
 	r->irqline = pf->irq_line;
@@ -624,7 +624,7 @@ pci_func_acquire(struct msg *msg, struct msg **reply, size_t *reply_size)
 	if (!user)
 		return EEXIST;
 	
-	pf = pci_serv_find_func(user, &m->func);
+	pf = pci_serv_find_func(user, &m->id);
 	if (!pf)
 		return EEXIST;
 	if (pf->owner)
@@ -647,7 +647,7 @@ pci_func_enable(struct msg *msg, struct msg **reply, size_t *reply_size)
 	if (!user)
 		return EEXIST;
 	
-	pf = pci_serv_find_func(user, &m->func);
+	pf = pci_serv_find_func(user, &m->id);
 	if (!pf)
 		return EEXIST;
 	_pci_func_enable(pf, flag);
@@ -667,7 +667,7 @@ pci_func_release(struct msg *msg, struct msg **reply, size_t *reply_size)
 	if (!user)
 		return EEXIST;
 	
-	pf = pci_serv_find_func(user, &m->func);
+	pf = pci_serv_find_func(user, &m->id);
 	if (!pf)
 		return EEXIST;
 	pf->owner = 0;

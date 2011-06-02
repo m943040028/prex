@@ -40,7 +40,7 @@ struct pci_probe_msg {
 
 struct pci_probe_reply {
 	struct msg_header hdr;
-	pci_func_id_t	func;
+	pci_func_id_t	id;
 	uint32_t	reg_base[6];
 	uint32_t	reg_size[6];
 	uint16_t	irqline;
@@ -49,18 +49,18 @@ struct pci_probe_reply {
 
 struct pci_acquire_msg {
 	struct msg_header hdr;
-	pci_func_id_t	func;
+	pci_func_id_t	id;
 };
 
 struct pci_enable_msg {
 	struct msg_header hdr;
-	pci_func_id_t	func;
+	pci_func_id_t	id;
 	uint8_t		flag;
 };
 
 struct pci_release_msg {
 	struct msg_header hdr;
-	pci_func_id_t	func;
+	pci_func_id_t	id;
 };
 
 /*
